@@ -1,42 +1,54 @@
 # database/schema.py
 import sqlite3
-from datetime import datetime
+import sys
+import os
 
-DB_PATH = 'news.db'
+# Use the canonical DB_PATH from config
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import DB_PATH
 
-def init_db():
-    """Khởi tạo database"""
-    conn = sqlite3.connect(DB_PATH)
+
+def init_db(db_path: str = DB_PATH):
+    """Khởi tạo database với schema chuẩn cho Module 1."""
+    conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    
+
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS articles (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        url TEXT UNIQUE NOT NULL,
-        source TEXT NOT NULL,              -- 'vnexpress', 'tuoitre'
-        category TEXT,                     -- 'kinh-doanh', 'cong-nghe'...
-        title TEXT NOT NULL,
-        summary TEXT,
-        content TEXT,
-        published_at DATETIME,             -- ⭐ thời gian đăng (dùng lọc)
-        crawled_at DATETIME NOT NULL,      -- thời gian crawl
-        clickbait_score REAL DEFAULT 0,    -- 0-1
-        clickbait_label INTEGER,           -- 0/1
-        topic_id INTEGER,                  -- chủ đề
-        topic_version TEXT,                -- batch version
-        is_featured BOOLEAN DEFAULT 0,     -- có ở top không
-        featured_position INTEGER,         -- vị trí bao nhiêu
-        featured_since DATETIME,           -- lúc nào ở top
-        featured_duration_hours REAL,      -- bao lâu ở top
-        view_count INTEGER,                -- lượt xem
-        trending_score REAL DEFAULT 0,     -- điểm trending
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        article_id      TEXT UNIQUE NOT NULL,   -- sha1(url)
+        url             TEXT UNIQUE NOT NULL,
+        source          TEXT NOT NULL,           -- 'vnexpress' | 'tuoitre'
+        category        TEXT,                    -- 'kinh-doanh', 'thoi-su', …
+        title           TEXT NOT NULL,
+        summary         TEXT,
+        content_text    TEXT,                    -- cleaned plain-text body
+        author          TEXT,
+        tags            TEXT,                    -- comma-separated tag list
+        published_at    TEXT,                    -- "YYYY-MM-DD HH:MM:SS" or NULL
+        crawled_at      TEXT NOT NULL,           -- "YYYY-MM-DD HH:MM:SS"
+        content_html_raw TEXT,                   -- raw HTML snippet (debug)
+        fingerprint     TEXT,                    -- sha1(normalised content_text)
+        created_at      TEXT DEFAULT (datetime('now'))
     )
     ''')
-    
+
+    # Index to speed up fingerprint-based dedup lookups
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_fingerprint ON articles(fingerprint)'
+    )
+    # Index for time-range queries using crawled_at (published_at may be NULL)
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_crawled_at ON articles(crawled_at)'
+    )
+    cursor.execute(
+        'CREATE INDEX IF NOT EXISTS idx_published_at ON articles(published_at)'
+    )
+
     conn.commit()
     conn.close()
-    print("✅ Database initialized!")
+    print(f"✅ Database initialised at: {db_path}")
+
 
 if __name__ == '__main__':
     init_db()
