@@ -1,13 +1,18 @@
 import re
 import time
 import logging
+from datetime import datetime, timezone, timedelta
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from crawlers.base_crawler import BaseCrawler
-from crawlers.utils import normalize_text, parse_relative_time
+from crawlers.utils import normalize_text, parse_time
+from core.types import Article
+from processing.clean_text import extract_text_from_html, clean_text
 
 logger = logging.getLogger(__name__)
+
+_VN_TZ = timezone(timedelta(hours=7))
 
 
 class TuoitreCrawler(BaseCrawler):
@@ -24,7 +29,7 @@ class TuoitreCrawler(BaseCrawler):
         }
 
     def fetch_listing(self):
-        """Lấy danh sách URL bài từ trang chuyên mục Tuổi Trẻ"""
+        """Lấy danh sách URL bài từ trang chuyên mục Tuổi Trẻ."""
         url = self.category_urls.get(self.category, self.base_url)
         logger.info(f"Fetching listing from {url}")
 
@@ -33,8 +38,6 @@ class TuoitreCrawler(BaseCrawler):
             r.raise_for_status()
             soup = BeautifulSoup(r.content, 'html.parser')
 
-            # Lấy tất cả link có thể là bài viết
-            # Fallback nhiều selector vì layout có thể thay đổi
             candidate_links = []
             selectors = [
                 'h3 a[href]',
@@ -49,6 +52,11 @@ class TuoitreCrawler(BaseCrawler):
             urls = []
             seen = set()
 
+            blacklist = [
+                '/video', '/podcast', '/infographic', '/multimedia',
+                '/tag/', '/tim-kiem.htm', '/rss.htm',
+            ]
+
             for a in candidate_links:
                 href = a.get('href', '').strip()
                 if not href:
@@ -56,23 +64,15 @@ class TuoitreCrawler(BaseCrawler):
 
                 full_url = urljoin(self.base_url, href)
 
-                # Chỉ lấy link bài viết thật của tuoitre
                 if not full_url.startswith(self.base_url):
                     continue
                 if '.htm' not in full_url:
                     continue
-
-                # Loại trừ trang chủ/chuyên mục/tag/video...
-                blacklist = [
-                    '/video', '/podcast', '/infographic', '/multimedia',
-                    '/tag/', '/tim-kiem.htm', '/rss.htm'
-                ]
                 if any(x in full_url for x in blacklist):
                     continue
-
-                # Loại trừ duplicate
                 if full_url in seen:
                     continue
+
                 seen.add(full_url)
                 urls.append(full_url)
 
@@ -87,52 +87,78 @@ class TuoitreCrawler(BaseCrawler):
             return []
 
     def parse_article(self, url):
-        """Parse 1 bài từ Tuổi Trẻ"""
+        """Parse 1 bài từ Tuổi Trẻ và trả về Article theo schema chuẩn."""
         time.sleep(0.5)
 
         try:
             r = self.session.get(url, timeout=15)
             r.raise_for_status()
+            html = r.text
             soup = BeautifulSoup(r.content, 'html.parser')
 
-            # Title
+            # --- Title (required) ---
             title_elem = soup.select_one('h1.detail-title, h1.article-title, h1')
             title = normalize_text(title_elem.get_text()) if title_elem else ''
-
-            # Summary / sapo
-            summary_elem = soup.select_one('h2.detail-sapo, p.detail-sapo, p.sapo, p.article__summary')
-            summary = normalize_text(summary_elem.get_text()) if summary_elem else ''
-
-            # Content
-            content = ''
-            content_elem = soup.select_one('div.detail-content, div#main-detail-body, div.article__content')
-            if content_elem:
-                paragraphs = content_elem.select('p')
-                texts = [normalize_text(p.get_text()) for p in paragraphs if normalize_text(p.get_text())]
-                content = ' '.join(texts[:12])
-
-            # Published time
-            published_at = None
-            time_elem = soup.select_one('div.date-time, span.date-time, span.article__time, time')
-            if time_elem:
-                time_text = normalize_text(time_elem.get_text())
-                # parse_relative_time của bạn có thể parse dạng "2 giờ trước"
-                # nếu gặp format dd/mm/yyyy HH:MM thì nên bổ sung parser sau
-                published_at = parse_relative_time(time_text)
-
-            # Nếu title rỗng thì coi là parse fail
             if not title:
+                logger.warning(f"No title found for {url}, skipping")
                 return None
 
-            return {
-                'url': url,
-                'source': 'tuoitre',
-                'category': self.category,
-                'title': title,
-                'summary': summary,
-                'content': content[:1000],  # có thể giảm xuống 500 nếu muốn nhẹ DB
-                'published_at': published_at,
-            }
+            # --- Summary / sapo ---
+            summary_elem = soup.select_one(
+                'h2.detail-sapo, p.detail-sapo, p.sapo, p.article__summary'
+            )
+            summary = normalize_text(summary_elem.get_text()) if summary_elem else ''
+
+            # --- Author ---
+            author_elem = soup.select_one(
+                'div.author-info strong, p.author-name, span.author'
+            )
+            author = normalize_text(author_elem.get_text()) if author_elem else None
+
+            # --- Tags ---
+            tag_elems = soup.select('ul.tags a, div.tags a, a.tag-item')
+            tags = [normalize_text(t.get_text()) for t in tag_elems if t.get_text(strip=True)]
+
+            # --- Content ---
+            content_elem = soup.select_one(
+                'div.detail-content, div#main-detail-body, div.article__content'
+            )
+            content_html_raw = str(content_elem) if content_elem else ''
+            content_text = extract_text_from_html(
+                content_html_raw or html,
+                content_selector='div.detail-content, div#main-detail-body',
+            )
+            content_text = clean_text(content_text)
+
+            # --- Published time ---
+            published_at = None
+            time_elem = soup.select_one(
+                'div.date-time, span.date-time, span.article__time, time[datetime]'
+            )
+            if time_elem:
+                # Prefer machine-readable datetime attribute
+                dt_attr = time_elem.get('datetime')
+                if dt_attr:
+                    published_at = parse_time(dt_attr)
+                else:
+                    published_at = parse_time(normalize_text(time_elem.get_text()))
+
+            # --- Crawled at ---
+            crawled_at = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+            return Article(
+                url=url,
+                source='tuoitre',
+                category=self.category,
+                title=title,
+                summary=summary or None,
+                content_text=content_text,
+                author=author,
+                tags=tags,
+                published_at=published_at,
+                crawled_at=crawled_at,
+                content_html_raw=content_html_raw or None,
+            ).to_dict()
 
         except Exception as e:
             logger.error(f"Error parsing {url}: {e}")
