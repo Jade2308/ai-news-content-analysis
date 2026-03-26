@@ -2,6 +2,8 @@
 
 ## news-mining – Module 1: Thu thập & Chuẩn hóa Dữ liệu
 
+ref: https://www.sciencedirect.com/science/article/pii/S2352340925008856
+
 > **Web Mining** – Tự động thu thập, làm sạch và lưu trữ bài báo tiếng Việt từ VNExpress & Tuổi Trẻ vào SQLite.
 
 ---
