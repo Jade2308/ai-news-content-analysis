@@ -1,61 +1,53 @@
-"""
-core/types.py – Unified Article schema for news-mining.
-
-Every crawler must return a dict that conforms to this schema (or an Article
-dataclass instance, which can be converted to a dict with asdict()).
-"""
 from __future__ import annotations
-
 import hashlib
 from dataclasses import dataclass, field, asdict
-from typing import Optional
-
-
-def _sha1(text: str) -> str:
-    return hashlib.sha1(text.encode('utf-8')).hexdigest()
-
+from typing import List, Optional, Dict, Any
 
 @dataclass
 class Article:
-    # --- Identity ---
-    url: str                           # canonical article URL
-    source: str                        # 'vnexpress' | 'tuoitre'
-    category: str                      # e.g. 'kinh-doanh', 'thoi-su'
-
-    # --- Content ---
+    """Standardized article data container with hashing for ID & fingerprint."""
+    url: str
+    source: str  # 'vnexpress' | 'tuoitre'
+    category: str
     title: str
     summary: Optional[str] = None
-    content_text: str = ''             # cleaned plain-text body
+    content_text: Optional[str] = None
     author: Optional[str] = None
-    tags: Optional[list] = field(default_factory=list)
+    tags: List[str] = field(default_factory=list)
+    published_at: Optional[str] = None
+    crawled_at: Optional[str] = None
+    content_html_raw: Optional[str] = None
+    thumbnail_url: Optional[str] = None
+    fingerprint: Optional[str] = None
+    article_id: str = field(init=False)
 
-    # --- Time ---
-    published_at: Optional[str] = None  # "YYYY-MM-DD HH:MM:SS" or None
-    crawled_at: Optional[str] = None    # "YYYY-MM-DD HH:MM:SS"
-
-    # --- Debug ---
-    content_html_raw: Optional[str] = None  # raw HTML snippet (optional)
-
-    # --- Derived (auto-computed if not provided) ---
-    article_id: str = ''     # sha1(url)
-    fingerprint: str = ''    # sha1(normalised content_text)
-
-    def __post_init__(self):
-        if not self.article_id and self.url:
-            self.article_id = _sha1(self.url)
+    def __post_init__(self) -> None:
+        # Generate stable unique ID based on URL
+        self.article_id = hashlib.sha1(self.url.encode('utf-8')).hexdigest()
+        
+        # Generate content fingerprint if text is available and FP not provided
         if not self.fingerprint and self.content_text:
-            # Normalise before hashing: collapse whitespace, lower-case
-            import re
-            normalized = re.sub(r'\s+', ' ', self.content_text).strip().lower()
-            self.fingerprint = _sha1(normalized)
+            # Simple normalization for fingerprinting
+            text_norm = "".join(self.content_text.split()).lower()
+            self.fingerprint = hashlib.sha1(text_norm.encode('utf-8')).hexdigest()
 
-    def to_dict(self) -> dict:
-        d = asdict(self)
-        # Serialise tags list to comma-separated string for SQLite storage
-        if isinstance(d.get('tags'), list):
-            d['tags'] = ','.join(d['tags']) if d['tags'] else ''
-        return d
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to a dictionary suitable for database insertion/JSON."""
+        data = asdict(self)
+        # Convert tags list to comma-separated string for DB storage
+        if isinstance(data.get('tags'), list):
+            data['tags'] = ",".join(data['tags'])
+        return data
 
-    @staticmethod
-    def required_fields() -> list:
-        return ['url', 'source', 'category', 'title', 'crawled_at']
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> Article:
+        """Hydrate an Article instance from a dictionary (e.g., from DB or API)."""
+        # Handle tags string conversion back to list
+        if 'tags' in data and isinstance(data['tags'], str):
+            data['tags'] = [t.strip() for t in data['tags'].split(',') if t.strip()]
+        
+        # Extract only known fields to avoid TypeError on extra keys
+        field_names = {f.name for f in cls.__dataclass_fields__.values() if f.init}
+        filtered_data = {k: v for k, v in data.items() if k in field_names}
+        
+        return cls(**filtered_data)

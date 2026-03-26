@@ -1,10 +1,9 @@
 import re
-import time
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 from urllib.parse import urljoin
+from typing import Optional, List
 
-from bs4 import BeautifulSoup
 from crawlers.base import BaseCrawler
 from crawlers.helpers import normalize_text, parse_time
 from core.shared_types import Article
@@ -12,25 +11,12 @@ from core.cleaner import extract_text_from_html, clean_text
 
 logger = logging.getLogger(__name__)
 
-_VN_TZ = timezone(timedelta(hours=7))
-
-
-_LISTING_BLACKLIST = [
-    '/video', '/podcast', '/infographic', '/multimedia',
-    '/tag/', '/tim-kiem.htm', '/rss.htm',
-]
-
-# Article URLs on Tuổi Trẻ usually end with a long numeric ID before .htm,
-# e.g. "ten-bai-2026031813171468.htm". Avoid section pages like "...-360.htm".
-_ARTICLE_URL_RE = re.compile(r'-\d{7,}\.htm$')
-
-
 class TuoitreCrawler(BaseCrawler):
-    def __init__(self, category='thoi-su'):
+    """Crawler implementation for TuoiTre news site."""
+    
+    def __init__(self, category: str = 'thoi-su'):
         super().__init__('tuoitre', category)
         self.base_url = 'https://tuoitre.vn'
-
-        # Mapping category chuẩn hóa -> URL thực tế của Tuổi Trẻ
         self.category_urls = {
             'thoi-su': 'https://tuoitre.vn/thoi-su.htm',
             'kinh-doanh': 'https://tuoitre.vn/kinh-doanh.htm',
@@ -39,139 +25,98 @@ class TuoitreCrawler(BaseCrawler):
             'the-thao': 'https://tuoitre.vn/the-thao.htm',
             'suc-khoe': 'https://tuoitre.vn/suc-khoe.htm',
         }
+        # Avoid non-article content
+        self._blacklist = ['/video', '/podcast', '/infographic', '/multimedia', '/tag/', '/tim-kiem.htm']
+        # Articles usually have an ID at the end before .htm
+        self._article_re = re.compile(r'-\d{7,}\.htm$')
 
-    def fetch_listing(self):
-        """Lấy danh sách URL bài từ trang chuyên mục Tuổi Trẻ."""
+    def fetch_listing(self) -> List[str]:
+        """Fetch article URLs from the listing page."""
         url = self.category_urls.get(self.category, self.base_url)
-        logger.info(f"Fetching listing from {url}")
+        soup = self.get_soup(url)
+        if not soup:
+            return []
 
-        try:
-            r = self.session.get(url, timeout=15)
-            r.raise_for_status()
-            soup = BeautifulSoup(r.content, 'html.parser')
-
-            candidate_links = []
-            selectors = [
-                'h3 a[href]',
-                'h2 a[href]',
-                'article a[href]',
-                'a.box-category-link-with-avatar[href]',
-                'a[href*=".htm"]',
-            ]
-            for sel in selectors:
-                candidate_links.extend(soup.select(sel))
-
-            urls = []
-            seen = set()
-
-            blacklist = _LISTING_BLACKLIST
-
-            for a in candidate_links:
+        urls = []
+        selectors = ['h3 a[href]', 'h2 a[href]', 'article a[href]', 'a.box-category-link-with-avatar[href]']
+        for sel in selectors:
+            for a in soup.select(sel):
                 href = a.get('href', '').strip()
                 if not href:
                     continue
-
                 full_url = urljoin(self.base_url, href)
+                
+                # Validation: must be within TuoiTre and look like an article
+                if (full_url.startswith(self.base_url) and 
+                    '.htm' in full_url and 
+                    not any(x in full_url for x in self._blacklist) and 
+                    self._article_re.search(full_url)):
+                    urls.append(full_url)
+        
+        return list(dict.fromkeys(urls))  # Remove duplicates
 
-                if not full_url.startswith(self.base_url):
-                    continue
-                if '.htm' not in full_url:
-                    continue
-                if any(x in full_url for x in blacklist):
-                    continue
-                # Only accept real article URLs (end with -<digits>.htm)
-                if not _ARTICLE_URL_RE.search(full_url):
-                    continue
-                if full_url in seen:
-                    continue
-
-                seen.add(full_url)
-                urls.append(full_url)
-
-                if len(urls) >= 50:
-                    break
-
-            logger.info(f"Found {len(urls)} article urls")
-            return urls
-
-        except Exception as e:
-            logger.error(f"Error fetching listing: {e}", exc_info=True)
-            return []
-
-    def parse_article(self, url):
-        """Parse 1 bài từ Tuổi Trẻ và trả về Article theo schema chuẩn."""
-        time.sleep(0.5)
+    def parse_article(self, url: str) -> Optional[Article]:
+        """Parse the content of a single TuoiTre article."""
+        soup = self.get_soup(url)
+        if not soup:
+            return None
 
         try:
-            r = self.session.get(url, timeout=15)
-            r.raise_for_status()
-            html = r.text
-            soup = BeautifulSoup(r.content, 'html.parser')
-
-            # --- Title (required) ---
+            # --- Title ---
             title_elem = soup.select_one('h1.detail-title, h1.article-title, h1')
             title = normalize_text(title_elem.get_text()) if title_elem else ''
             if not title:
-                logger.warning(f"No title found for {url}, skipping")
+                logger.warning(f"Skipping article with no title: {url}")
                 return None
 
-            # --- Summary / sapo ---
-            summary_elem = soup.select_one(
-                'h2.detail-sapo, p.detail-sapo, p.sapo, p.article__summary'
-            )
+            # --- Summary (Sapo) ---
+            summary_elem = soup.select_one('h2.detail-sapo, p.detail-sapo, p.sapo, p.article__summary')
             summary = normalize_text(summary_elem.get_text()) if summary_elem else ''
 
             # --- Author ---
-            author_elem = soup.select_one(
-                'div.author-info strong, p.author-name, span.author'
-            )
+            author_elem = soup.select_one('div.author-info strong, p.author-name, span.author')
             author = normalize_text(author_elem.get_text()) if author_elem else None
 
             # --- Tags ---
             tag_elems = soup.select('ul.tags a, div.tags a, a.tag-item')
             tags = [normalize_text(t.get_text()) for t in tag_elems if t.get_text(strip=True)]
 
-            # --- Content ---
-            content_elem = soup.select_one(
-                'div.detail-content, div#main-detail-body, div.article__content'
-            )
+            # --- Thumbnail Image ---
+            img_url = None
+            og_img = soup.select_one('meta[property="og:image"]')
+            if og_img:
+                img_url = og_img.get('content')
+            if not img_url:
+                tw_img = soup.select_one('meta[name="twitter:image"]')
+                if tw_img:
+                    img_url = tw_img.get('content')
+
+            # --- Content Extraction & Cleaning ---
+            content_elem = soup.select_one('div.detail-content, div#main-detail-body, div.article__content')
             content_html_raw = str(content_elem) if content_elem else ''
             content_text = extract_text_from_html(
-                content_html_raw or html,
+                content_html_raw or str(soup),
                 content_selector='div.detail-content, div#main-detail-body',
             )
             content_text = clean_text(content_text)
 
-            # --- Published time ---
+            # --- Publication Time ---
             published_at = None
-
-            meta_time_elem = soup.select_one(
-                'meta[property="article:published_time"], '
-                'meta[name="pubdate"], '
-                'meta[name="publishdate"]'
-            )
-            if meta_time_elem and meta_time_elem.get('content'):
-                published_at = parse_time(meta_time_elem.get('content'))
-
+            # Method 1: Meta tags
+            meta_time = soup.select_one('meta[property="article:published_time"], meta[name="pubdate"]')
+            if meta_time and meta_time.get('content'):
+                published_at = parse_time(str(meta_time.get('content')))
+            
+            # Method 2: Element extraction
             if not published_at:
-                time_elem = soup.select_one(
-                    'div.date-time, div.detail-time, span.date-time, '
-                    'span.article__time, time[datetime]'
-                )
+                time_elem = soup.select_one('div.date-time, div.detail-time, span.article__time, time[datetime]')
                 if time_elem:
-                    # Prefer machine-readable datetime attribute
                     dt_attr = time_elem.get('datetime')
-                    if dt_attr:
-                        published_at = parse_time(dt_attr)
-                    else:
-                        published_at = parse_time(normalize_text(time_elem.get_text()))
-
-            # --- Crawled at ---
-            crawled_at = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+                    published_at = parse_time(str(dt_attr) if dt_attr else normalize_text(time_elem.get_text()))
 
             return Article(
                 url=url,
-                source='tuoitre',
+                source=self.source,
                 category=self.category,
                 title=title,
                 summary=summary or None,
@@ -179,18 +124,20 @@ class TuoitreCrawler(BaseCrawler):
                 author=author,
                 tags=tags,
                 published_at=published_at,
-                crawled_at=crawled_at,
+                crawled_at=datetime.now(self.vn_tz).strftime('%Y-%m-%d %H:%M:%S'),
                 content_html_raw=content_html_raw or None,
-            ).to_dict()
+                thumbnail_url=img_url,
+            )
 
         except Exception as e:
-            logger.error(f"Error parsing {url}: {e}", exc_info=True)
+            logger.error(f"Error parsing TuoiTre article at {url}: {e}")
             return None
 
-
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
     crawler = TuoitreCrawler(category='thoi-su')
-    articles = crawler.run()
-    print(f"Crawled {len(articles)} articles")
+    articles = crawler.run(limit=1)
     if articles:
-        print(articles[0]['title'])
+        from dataclasses import asdict
+        import json
+        print(json.dumps(asdict(articles[0]), indent=2, ensure_ascii=False))

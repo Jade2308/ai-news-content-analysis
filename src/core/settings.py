@@ -1,44 +1,54 @@
-# config.py
+import os
+import logging
+from typing import Any, Dict, Optional
+from dotenv import load_dotenv
 
-# Cấu hình nguồn tin
-SOURCES = {
+# Configure basic logging level from environment
+load_dotenv()
+
+# --- Base directory and Root ---
+# src/
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# project_root/
+PROJECT_ROOT = os.path.dirname(BASE_DIR)
+
+def get_env_or_default(key: str, default: Any) -> Any:
+    """Helper to fetch environment variables with a default fallback."""
+    return os.environ.get(key, default)
+
+# --- Path settings ---
+DATA_DIR = os.path.join(PROJECT_ROOT, 'data')
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# --- Database settings ---
+# Default to articles.db in data directory if not specified
+DB_PATH = get_env_or_default('DB_PATH', os.path.join(DATA_DIR, 'articles.db'))
+
+# --- Crawler settings ---
+CRAWL_INTERVAL_MINUTES = int(get_env_or_default('CRAWL_INTERVAL_MINUTES', 30))
+CLICKBAIT_INTERVAL_MINUTES = int(get_env_or_default('CLICKBAIT_INTERVAL_MINUTES', 60))
+TOPIC_INTERVAL_HOURS = int(get_env_or_default('TOPIC_INTERVAL_HOURS', 6))
+
+SOURCES: Dict[str, Dict[str, Any]] = {
     'vnexpress': {
-        'base_url': 'https://vnexpress.net',
         'name': 'VNExpress',
         'categories': {
             'thoi-su': 'Thời sự',
             'kinh-doanh': 'Kinh doanh',
-            'cong-nghe': 'Khoa học công nghệ',
-            'giai-tri': 'Giải trí',
-            'the-thao': 'Thể thao',
-            'suc-khoe': 'Sức khỏe',
+            'khoa-hoc': 'Công nghệ',
         }
     },
     'tuoitre': {
-        'base_url': 'https://tuoitre.vn',
-        'name': 'Tuổi Trẻ Online',
+        'name': 'Tuổi Trẻ',
         'categories': {
             'thoi-su': 'Thời sự',
             'kinh-doanh': 'Kinh doanh',
             'cong-nghe': 'Công nghệ',
-            'giai-tri': 'Giải trí',
-            'the-thao': 'Thể thao',
-            'suc-khoe': 'Sức khỏe',
         }
     }
 }
 
-# Cấu hình scheduler
-CRAWL_INTERVAL_MINUTES = 15  # Crawl mỗi 15 phút
-CLICKBAIT_INTERVAL_MINUTES = 30  # Clickbait mỗi 30 phút
-TOPIC_INTERVAL_HOURS = 6  # Topic batch mỗi 6 giờ
-
-# Cấu hình topic modeling
-N_TOPICS = 8  # Số chủ đề
-TOPIC_METHOD = 'lda'  # 'lda' hoặc 'bertopic'
-
-# Cấu hình clickbait
-CLICKBAIT_SAMPLE_SIZE = 300  # Bao nhiêu bài gán nhãn thủ công
-
-# Cơ sở dữ liệu
-DB_PATH = 'data/news.db'
+# --- ML & Analysis settings ---
+N_TOPICS = int(get_env_or_default('N_TOPICS', 10))
+TOPIC_METHOD = get_env_or_default('TOPIC_METHOD', 'lda')  # Options: 'lda', 'nmf', 'bertopic'
+CLICKBAIT_SAMPLE_SIZE = int(get_env_or_default('CLICKBAIT_SAMPLE_SIZE', 100))

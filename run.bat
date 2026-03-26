@@ -1,65 +1,75 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
+title AI News Content Analysis - Runner
 
 :menu
 cls
 echo ==========================================
-echo AI News Content Analysis - Command Menu
+echo   AI News Content Analysis - Runner
 echo ==========================================
-echo 1. Initialize / Reset Database
-echo 2. Run Full Crawl (All Sources, Limit 50)
-echo 3. Crawl VNExpress Only
-echo 4. Crawl TuoiTre Only
-echo 5. Check VNExpress (Test Script)
-echo 6. Check TuoiTre (Test Script)
-echo 0. Exit
-echo ==========================================
-set /p choice="Enter your choice (0-6): "
+echo.
+echo  1. [Setup] Initializing/Verify Database
+echo  2. [Ingest] Run Full Ingestion (All Sources)
+echo  3. [Ingest] VNExpress Only (Limit 50)
+echo  4. [Ingest] TuoiTre Only (Limit 50)
+echo  5. [Check] Run Diagnostic Checks
+echo  6. [Exit] Close Runner
+echo.
+set /p choice="Select an option (1-6): "
 
-if "%choice%"=="1" goto init
-if "%choice%"=="2" goto crawl_all
-if "%choice%"=="3" goto crawl_vnexpress
-if "%choice%"=="4" goto crawl_tuoitre
-if "%choice%"=="5" goto check_vnexpress
-if "%choice%"=="6" goto check_tuoitre
-if "%choice%"=="0" goto end
+if "%choice%"=="1" goto setup
+if "%choice%"=="2" goto ingest_all
+if "%choice%"=="3" goto ingest_vn
+if "%choice%"=="4" goto ingest_tt
+if "%choice%"=="5" goto check
+if "%choice%"=="6" exit /b 0
+
+echo.
+echo Invalid choice, try again.
+timeout /t 2 >nul
 goto menu
 
-:init
-echo Initializing database...
-python src\main.py setup
+:setup
+echo.
+echo [Action] Initializing database...
+python -m src.main setup
+if %errorlevel% neq 0 (
+    echo [Error] Database setup failed.
+) else (
+    echo [Success] Database is ready.
+)
 pause
 goto menu
 
-:crawl_all
-echo Running full crawl...
-python src\main.py ingest --source all --limit 50
+:ingest_all
+echo.
+echo [Action] Running ingestion for all sources...
+python -m src.main ingest --source all --limit 50
+if %errorlevel% neq 0 (
+    echo [Error] Ingestion failed.
+) else (
+    echo [Success] Ingestion complete.
+)
 pause
 goto menu
 
-:crawl_vnexpress
-echo Crawling VNExpress...
-python src\main.py ingest --source vnexpress
+:ingest_vn
+echo.
+echo [Action] Running ingestion for VNExpress...
+python -m src.main ingest --source vnexpress --limit 50
 pause
 goto menu
 
-:crawl_tuoitre
-echo Crawling TuoiTre...
-python src\main.py ingest --source tuoitre
+:ingest_tt
+echo.
+echo [Action] Running ingestion for TuoiTre...
+python -m src.main ingest --source tuoitre --limit 50
 pause
 goto menu
 
-:check_vnexpress
-echo Running crawler tests...
-python src\main.py check
+:check
+echo.
+echo [Action] Running diagnostic checks...
+python -m src.main check
 pause
 goto menu
-
-:check_tuoitre
-echo Running crawler tests...
-python src\main.py check
-pause
-goto menu
-
-:end
-exit /b

@@ -1,59 +1,78 @@
-# crawlers/base_crawler.py
-import requests
-from bs4 import BeautifulSoup
+from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime
+from typing import List, Optional, Dict, Any
+from datetime import datetime, timezone, timedelta
 
-logging.basicConfig(level=logging.INFO)
+import requests
+from bs4 import BeautifulSoup
+
+from core.shared_types import Article
+
 logger = logging.getLogger(__name__)
 
 class BaseCrawler(ABC):
-    """Base class cho tất cả crawler"""
+    """Base class for all news crawlers, providing shared HTTP and orchestration logic."""
     
-    def __init__(self, source_name, category):
+    def __init__(self, source_name: str, category: str):
         self.source = source_name
         self.category = category
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         })
+        # Vietnam Timezone (UTC+7)
+        self.vn_tz = timezone(timedelta(hours=7))
     
     @abstractmethod
-    def fetch_listing(self):
-        """Lấy danh sách URL bài mới - cần override"""
-        raise NotImplementedError
+    def fetch_listing(self) -> List[str]:
+        """Fetch a list of article URLs from a category or listing page."""
+        pass
     
     @abstractmethod
-    def parse_article(self, url):
-        """Parse 1 bài - cần override"""
-        raise NotImplementedError
+    def parse_article(self, url: str) -> Optional[Article]:
+        """Parse a single article page and return an Article instance."""
+        pass
     
-    def run(self):
-        """Orchestrate: fetch listing → parse từng bài"""
-        logger.info(f"Starting crawl for {self.source} - {self.category}")
+    def get_soup(self, url: str, timeout: int = 15) -> Optional[BeautifulSoup]:
+        """Fetch a URL and return a BeautifulSoup object, handling common errors."""
+        try:
+            r = self.session.get(url, timeout=timeout)
+            r.raise_for_status()
+            # Default to lxml if available, fallback to html.parser
+            try:
+                return BeautifulSoup(r.content, 'lxml')
+            except Exception:
+                return BeautifulSoup(r.content, 'html.parser')
+        except Exception as e:
+            logger.error(f"Error fetching {url}: {e}")
+            return None
+
+    def run(self, limit: Optional[int] = None) -> List[Article]:
+        """Orchestrate the crawling and parsing process for the configured source/category."""
+        logger.info(f"🚀 Starting crawl: source={self.source}, category={self.category}")
         
         try:
             listing = self.fetch_listing()
-            logger.info(f"Found {len(listing)} articles in listing")
+            if limit:
+                listing = listing[:limit]
             
-            articles = []
+            logger.info(f"Found {len(listing)} potential articles in listing")
+            
+            articles: List[Article] = []
             for i, url in enumerate(listing, 1):
                 try:
                     article = self.parse_article(url)
                     if article:
                         articles.append(article)
-                        logger.info(f"✅ Parsed {i}/{len(listing)}: {article['title'][:50]}")
+                        title_snip = (article.title[:50] + "...") if len(article.title) > 50 else article.title
+                        logger.info(f"✅ [{self.source}] ({i}/{len(listing)}) Parsed: {title_snip}")
                 except Exception as e:
                     logger.error(f"❌ Error parsing {url}: {e}")
-                    continue
             
-            logger.info(f"✅ Crawl completed: {len(articles)} articles parsed")
+            logger.info(f"🏁 Crawl finished: {len(articles)}/{len(listing)} articles parsed for {self.source}/{self.category}")
             return articles
         
         except Exception as e:
-            logger.error(f"❌ Crawl failed: {e}")
+            logger.error(f"🔥 Crawl failed for {self.source}/{self.category}: {e}")
             return []
-
-if __name__ == '__main__':
-    pass

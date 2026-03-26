@@ -1,117 +1,97 @@
-# database/db.py
 import sqlite3
-import sys
-import os
-from datetime import datetime, timezone, timedelta
+import logging
+from contextlib import contextmanager
+from typing import List, Dict, Any, Optional, Iterator
 
-# Use the canonical DB_PATH from config
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.settings import DB_PATH
+from core.shared_types import Article
 
-_VN_TZ = timezone(timedelta(hours=7))
+logger = logging.getLogger(__name__)
 
-
-def get_connection(db_path: str = DB_PATH):
-    """Return a SQLite connection."""
-    return sqlite3.connect(db_path)
-
-
-def insert_article(data: dict, db_path: str = DB_PATH) -> str:
-    """
-    Insert an article into the DB.
-
-    Returns:
-        'inserted'   – new row was created
-        'dup_url'    – URL already exists
-        'dup_fp'     – different URL but same fingerprint (content duplicate)
-    """
-    conn = get_connection(db_path)
-    cursor = conn.cursor()
-
+@contextmanager
+def get_db_cursor(db_path: str = DB_PATH) -> Iterator[sqlite3.Cursor]:
+    """Context manager for SQLite database connection and cursor."""
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row  # Enable access by column name
     try:
-        # URL-based dedup first
-        cursor.execute('SELECT id FROM articles WHERE url = ?', (data['url'],))
-        if cursor.fetchone():
-            return 'dup_url'
-
-        # Fingerprint-based dedup (content duplicate, possibly different URL)
-        fp = data.get('fingerprint')
-        if fp:
-            cursor.execute(
-                'SELECT id FROM articles WHERE fingerprint = ?', (fp,)
-            )
-            if cursor.fetchone():
-                return 'dup_fp'
-
-        # crawled_at is always set by the crawler at crawl time; fallback is a
-        # safety net in case insert is called with incomplete data.
-        crawled_at = data.get('crawled_at') or datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
-
-        cursor.execute('''
-        INSERT INTO articles (
-            article_id, url, source, category,
-            title, summary, content_text, author, tags,
-            published_at, crawled_at, content_html_raw, fingerprint
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            data.get('article_id'),
-            data['url'],
-            data['source'],
-            data.get('category'),
-            data['title'],
-            data.get('summary'),
-            data.get('content_text'),
-            data.get('author'),
-            data.get('tags'),
-            data.get('published_at'),
-            crawled_at,
-            data.get('content_html_raw'),
-            fp,
-        ))
+        yield conn.cursor()
         conn.commit()
-        return 'inserted'
-    except sqlite3.IntegrityError:
-        return 'dup_url'
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Database transaction failed: {e}")
+        raise e
     finally:
         conn.close()
 
+def insert_article(article: Article, db_path: str = DB_PATH) -> str:
+    """
+    Insert an article into the DB with de-duplication logic.
+    Returns: 'inserted', 'dup_url', 'dup_fp', or 'error'.
+    """
+    data = article.to_dict()
+    try:
+        with get_db_cursor(db_path) as cursor:
+            # 1. URL-based de-duplication
+            cursor.execute('SELECT id FROM articles WHERE url = ?', (data['url'],))
+            if cursor.fetchone():
+                return 'dup_url'
 
-def get_all_articles(limit: int = 1000, db_path: str = DB_PATH) -> list:
-    """Return up to *limit* articles as a list of dicts."""
-    conn = get_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM articles LIMIT ?', [limit])
-    columns = [d[0] for d in cursor.description]
-    articles = [dict(zip(columns, row)) for row in cursor.fetchall()]
-    conn.close()
-    return articles
+            # 2. Fingerprint-based de-duplication
+            fp = data.get('fingerprint')
+            if fp:
+                cursor.execute('SELECT id FROM articles WHERE fingerprint = ?', (fp,))
+                if cursor.fetchone():
+                    return 'dup_fp'
 
+            # 3. Insertion
+            fields = [
+                'article_id', 'url', 'source', 'category', 'title', 'summary',
+                'content_text', 'author', 'tags', 'published_at', 'crawled_at',
+                'content_html_raw', 'thumbnail_url', 'fingerprint'
+            ]
+            placeholders = ', '.join(['?' for _ in fields])
+            sql = f'INSERT INTO articles ({", ".join(fields)}) VALUES ({placeholders})'
+            
+            values = [data.get(f) for f in fields]
+            cursor.execute(sql, values)
+            return 'inserted'
+            
+    except sqlite3.IntegrityError:
+        return 'dup_url'
+    except Exception as e:
+        logger.error(f"Database error during insertion of {data['url']}: {e}")
+        return 'error'
 
-def get_articles_by_timerange(hours: int = 24, limit: int = 1000, db_path: str = DB_PATH) -> list:
-    """Return articles crawled within the last *hours* hours."""
-    conn = get_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute('''
-    SELECT * FROM articles
-    WHERE crawled_at > datetime('now', '-' || ? || ' hours')
-    ORDER BY crawled_at DESC
-    LIMIT ?
-    ''', [hours, limit])
-    columns = [d[0] for d in cursor.description]
-    articles = [dict(zip(columns, row)) for row in cursor.fetchall()]
-    conn.close()
-    return articles
+def get_all_articles(limit: int = 1000, db_path: str = DB_PATH) -> List[Article]:
+    """Return latest articles as a list of Article objects."""
+    with get_db_cursor(db_path) as cursor:
+        cursor.execute('SELECT * FROM articles ORDER BY crawled_at DESC LIMIT ?', (limit,))
+        rows = cursor.fetchall()
+        return [Article.from_dict(dict(row)) for row in rows]
 
+def get_articles_by_timerange(hours: int = 24, limit: int = 1000, db_path: str = DB_PATH) -> List[Article]:
+    """Return articles crawled within a specific time range."""
+    with get_db_cursor(db_path) as cursor:
+        cursor.execute('''
+            SELECT * FROM articles 
+            WHERE crawled_at > datetime('now', '-' || ? || ' hours')
+            ORDER BY crawled_at DESC 
+            LIMIT ?
+        ''', (hours, limit))
+        rows = cursor.fetchall()
+        return [Article.from_dict(dict(row)) for row in rows]
 
 def count_articles(db_path: str = DB_PATH) -> int:
-    """Return total number of articles in the DB."""
-    conn = get_connection(db_path)
-    cursor = conn.cursor()
-    cursor.execute('SELECT COUNT(*) FROM articles')
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
-
+    """Return total article count."""
+    try:
+        with get_db_cursor(db_path) as cursor:
+            cursor.execute('SELECT COUNT(*) FROM articles')
+            res = cursor.fetchone()
+            return res[0] if res else 0
+    except Exception:
+        return 0
 
 if __name__ == '__main__':
-    print(f"Total articles: {count_articles()}")
+    logging.basicConfig(level=logging.INFO)
+    logger.info(f"Connected to database: {DB_PATH}")
+    logger.info(f"Total articles: {count_articles()}")

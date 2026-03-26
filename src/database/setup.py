@@ -1,35 +1,34 @@
 #!/usr/bin/env python3
-"""
-scripts/init_db.py – Khởi tạo cơ sở dữ liệu SQLite cho news-mining.
-
-Cách dùng:
-    python scripts/init_db.py
-    python scripts/init_db.py --db-path /path/to/custom.db
-"""
 import argparse
+import logging
 import os
 import sys
 
-# Ensure project root is on sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Support running as a package or a direct script
+if __name__ == "__main__":
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.settings import DB_PATH
 from database.models import init_db
 
-
 def main():
     parser = argparse.ArgumentParser(
-        description='Khởi tạo SQLite database cho news-mining.'
+        description='Initialize the SQLite database schema for AI News Content Analysis.'
     )
     parser.add_argument(
         '--db-path',
         default=DB_PATH,
-        help=f'Đường dẫn tới file DB (mặc định: {DB_PATH})',
+        help=f'Path to the SQLite database file (default: {DB_PATH})',
     )
     args = parser.parse_args()
 
-    init_db(db_path=args.db_path)
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s [%(name)s] %(message)s',
+        datefmt='%H:%M:%S',
+    )
 
+    init_db(db_path=args.db_path)
 
 if __name__ == '__main__':
     main()
