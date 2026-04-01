@@ -1,0 +1,59 @@
+{
+  "vnexpress": {
+    "vne-go": "https://vnexpress.net/vne-go",
+    "thoi-su": "https://vnexpress.net/thoi-su",
+    "the-gioi": "https://vnexpress.net/the-gioi",
+    "khoa-hoc-cong-nghe": "https://vnexpress.net/khoa-hoc-cong-nghe",
+    "goc-nhin": "https://vnexpress.net/goc-nhin",
+    "bat-dong-san": "https://vnexpress.net/bat-dong-san",
+    "suc-khoe": "https://vnexpress.net/suc-khoe",
+    "the-thao": "https://vnexpress.net/the-thao",
+    "giai-tri": "https://vnexpress.net/giai-tri",
+    "phap-luat": "https://vnexpress.net/phap-luat",
+    "giao-duc": "https://vnexpress.net/giao-duc",
+    "doi-song": "https://vnexpress.net/doi-song",
+    "xe": "https://vnexpress.net/oto-xe-may",
+    "du-lich": "https://vnexpress.net/du-lich",
+    "y-kien": "https://vnexpress.net/y-kien",
+    "tam-su": "https://vnexpress.net/tam-su",
+    "thu-gian": "https://vnexpress.net/thu-gian"
+  },
+  "vietnamnet": {
+    "chinh-tri": "https://vietnamnet.vn/chinh-tri",
+    "thoi-su": "https://vietnamnet.vn/thoi-su",
+    "net-zero": "https://vietnamnet.vn/net-zero",
+    "giao-duc": "https://vietnamnet.vn/giao-duc",
+    "the-gioi": "https://vietnamnet.vn/the-gioi",
+    "the-thao": "https://vietnamnet.vn/the-thao",
+    "doi-song": "https://vietnamnet.vn/doi-song",
+    "tuan-viet-nam": "https://vietnamnet.vn/tuan-viet-nam",
+    "suc-khoe": "https://vietnamnet.vn/suc-khoe",
+    "cong-nghe": "https://vietnamnet.vn/cong-nghe",
+    "phap-luat": "https://vietnamnet.vn/phap-luat",
+    "xe": "https://vietnamnet.vn/oto-xe-may",
+    "bat-dong-san": "https://vietnamnet.vn/bat-dong-san",
+    "du-lich": "https://vietnamnet.vn/du-lich",
+    "ban-doc": "https://vietnamnet.vn/ban-doc"
+  },
+  "tuoitre": {
+    "thoi-su": "https://tuoitre.vn/thoi-su.htm",
+    "the-gioi": "https://tuoitre.vn/the-gioi.htm",
+    "phap-luat": "https://tuoitre.vn/phap-luat.htm",
+    "cong-nghe": "https://tuoitre.vn/cong-nghe.htm",
+    "xe": "https://tuoitre.vn/xe.htm",
+    "du-lich": "https://tuoitre.vn/du-lich.htm",
+    "nhip-song-tre": "https://tuoitre.vn/nhip-song-tre.htm",
+    "van-hoa": "https://tuoitre.vn/van-hoa.htm",
+    "giai-tri": "https://tuoitre.vn/giai-tri.htm",
+    "the-thao": "https://tuoitre.vn/the-thao.htm",
+    "giao-duc": "https://tuoitre.vn/giao-duc.htm",
+    "nha-dat": "https://tuoitre.vn/nha-dat.htm",
+    "suc-khoe": "https://tuoitre.vn/suc-khoe.htm",
+    "gia-that": "https://tuoitre.vn/gia-that.htm",
+    "ban-doc": "https://tuoitre.vn/ban-doc.htm"
+  },
+  "baomoi": {
+    "bong-da": "https://www.baomoi.com/bong-da.epi",
+    "chinh-phu": "https://www.baomoi.com/bao-chinh-phu-chinh-phu-p146.epi"
+  }
+}
