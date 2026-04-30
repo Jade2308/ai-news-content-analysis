@@ -70,3 +70,10 @@ models/**/runs/
 # Documentation
 !docs/
 !docs/**
+
+# Streamlit logs
+streamlit.out.log
+streamlit.err.log
+streamlit*.log
+.streamlit/
+

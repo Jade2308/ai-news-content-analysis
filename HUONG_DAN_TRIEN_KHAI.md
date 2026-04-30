@@ -107,7 +107,7 @@ python scripts/run_scheduler.py
 
 Bây giờ bạn đã có đầy đủ mã nguồn, thư viện, mô hình AI và dữ liệu mẫu. Hãy bật giao diện tương tác lên:
 ```bash
-streamlit run dashboard_plan.md  # Thay bằng `app.py` hay thư mục bạn sẽ code
+python -m streamlit run dashboard.py
 ```
 _Mở URL local (vd: http://localhost:8501) hiển thị trên Terminal để trải nghiệm trực giác bằng giao diện._
 
