@@ -16,12 +16,12 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
 	sys.path.insert(0, str(PROJECT_ROOT))
 
-from config import DB_PATH
-from database.schema import init_db
+from src.config import DB_PATH
+from src.database.schema import init_db
 
 # Page config
 st.set_page_config(

@@ -6,7 +6,7 @@ import sqlite3
 import json
 from abc import ABC, abstractmethod
 from datetime import datetime
-from config import DB_PATH
+from src.config import DB_PATH
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

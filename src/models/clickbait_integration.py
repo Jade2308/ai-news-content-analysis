@@ -198,7 +198,7 @@ def insert_article_with_clickbait_detection(
         - insert_status: 'inserted', 'dup_url', 'dup_fp'
         - clickbait_result: Dict with detection results or None
     """
-    from database.db import insert_article
+    from src.database.db import insert_article
     
     clickbait_result = None
     

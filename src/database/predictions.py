@@ -9,8 +9,7 @@ from typing import List, Dict, Optional
 import sys
 import os
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DB_PATH
+from src.config import DB_PATH
 
 
 def add_prediction(
@@ -238,5 +237,4 @@ def get_sample_predictions(limit: int = 10, db_path: str = DB_PATH) -> List[Dict
     except Exception as e:
         print(f"❌ Error fetching samples: {e}")
         return []
-
 

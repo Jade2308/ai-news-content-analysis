@@ -7,8 +7,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
 
 # Use the canonical DB_PATH from config
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import DB_PATH
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from src.config import DB_PATH
 
 _VN_TZ = timezone(timedelta(hours=7))
 logger = logging.getLogger(__name__)
@@ -237,7 +237,7 @@ def get_latest_hot_topics(timeframe_hours: int, db_path: str = DB_PATH) -> list:
         
     cursor.execute('''
         SELECT id, topic_name, keywords, article_count, timeframe, created_at
-        FROM hot_topics 
+        FROM hot_topics
         WHERE timeframe = ? AND created_at = ?
     ''', (timeframe_hours, latest_time))
     

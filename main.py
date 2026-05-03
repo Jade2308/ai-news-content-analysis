@@ -17,7 +17,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 
 def run_streamlit(port: int = 8501):
     """Run the Streamlit dashboard using the current Python interpreter."""
-    cmd = [sys.executable, "-m", "streamlit", "run", "dashboard.py", "--server.address", "127.0.0.1", "--server.port", str(port)]
+    dashboard_path = os.path.join(ROOT, "src", "dashboard.py")
+    cmd = [sys.executable, "-m", "streamlit", "run", dashboard_path, "--server.address", "127.0.0.1", "--server.port", str(port)]
     print("Starting Streamlit:\n  " + " ".join(cmd))
     subprocess.run(cmd, cwd=ROOT)
 

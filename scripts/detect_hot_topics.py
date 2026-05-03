@@ -5,8 +5,8 @@ import argparse
 import requests
 from dotenv import load_dotenv
 
-# Thêm đường dẫn thư mục gốc vào sys.path để import được database/ và processing/
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add src directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
 
 from database.db import get_articles_by_timerange, save_hot_topics
 from processing.topic_bertopic import TopicAnalyzer

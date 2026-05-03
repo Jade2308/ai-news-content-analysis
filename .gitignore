@@ -106,9 +106,8 @@ TODO.md
 temp/
 tmp/
 
-# News Data
-discovered_categories.json
-evaluation_results/
+# News Data (generated)
+data/discovered_categories.json
 
 # ============================================================================
 # ML Models & Artifacts (Large Files)
@@ -130,19 +129,17 @@ models/**/*.ckpt
 *.pkl
 *.pickle
 
-# Training artifacts
-*.csv
+# Training artifacts (generated)
 training_history/
-results/
+results/evaluation_results/
+results/models/
 outputs/
 
 # ============================================================================
 # Data
 # ============================================================================
-data/
-*.csv
-*.tsv
-*.json
+# Generated/local artifacts
+data/news.db
 raw_data/
 
 # ============================================================================
@@ -159,5 +156,3 @@ docs/.doctrees/
 *.tmp
 *.orig
 *.backup
-
-

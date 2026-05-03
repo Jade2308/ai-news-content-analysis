@@ -10,7 +10,7 @@ import logging
 import argparse
 import sqlite3
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
 
 from database.predictions import (
     add_batch_predictions,
