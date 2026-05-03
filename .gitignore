@@ -1,4 +1,6 @@
-# Python
+# ============================================================================
+# Python & Virtual Environment
+# ============================================================================
 __pycache__/
 *.py[cod]
 *$py.class
@@ -21,59 +23,141 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Virtual Environment
-.env
-.venv
-env/
+# Virtual Environments
+.venv/
 venv/
 ENV/
+env/
 env.bak/
 venv.bak/
 
-# Testing
-.cache
+# ============================================================================
+# Environment & Configuration
+# ============================================================================
+.env
+.env.local
+.env.*.local
+
+# Streamlit config (user-specific settings)
+.streamlit/
+
+# ============================================================================
+# IDEs & Editors
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.spyderproject
+.spyproject
+.ropeproject
+*.sublime-project
+*.sublime-workspace
+
+# ============================================================================
+# Operating System
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# Testing & Coverage
+# ============================================================================
+.cache/
 .coverage
 .coverage.*
 .hypothesis/
 .pytest_cache/
+htmlcov/
 nosetests.xml
 coverage.xml
 *.cover
 *.pye
+test-results.xml
 
-# IDEs
-.idea/
-.vscode/
-.spyderproject
-.spyproject
-.ropeproject
-
-# OS
-.DS_Store
-Thumbs.db
-
+# ============================================================================
 # Project Specific
-*.db
-*.log
-note.txt
+# ============================================================================
 
-# ML Artifacts (large files)
+# Database (local instances - each developer has their own)
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+streamlit.out.log
+streamlit.err.log
+
+# Notes & temporary files
+note.txt
+notes/
+TODO.md
+temp/
+tmp/
+
+# News Data
+discovered_categories.json
+evaluation_results/
+
+# ============================================================================
+# ML Models & Artifacts (Large Files)
+# ============================================================================
+# Pre-trained models directory
+models/phobert_clickbait/
+models/**/checkpoint*/
+models/**/runs/
+models/**/*.safetensors
+models/**/*.ckpt
+
+# Model weights & checkpoints
 *.safetensors
 *.ckpt
 *.pt
 *.pth
 *.bin
-models/**/checkpoint*/
-models/**/runs/
+*.joblib
+*.pkl
+*.pickle
 
-# Documentation
-!docs/
-!docs/**
+# Training artifacts
+*.csv
+training_history/
+results/
+outputs/
 
-# Streamlit logs
-streamlit.out.log
-streamlit.err.log
-streamlit*.log
-.streamlit/
+# ============================================================================
+# Data
+# ============================================================================
+data/
+*.csv
+*.tsv
+*.json
+raw_data/
+
+# ============================================================================
+# Documentation (keep docs/ in repo)
+# ============================================================================
+# Exclude API docs auto-generated files (but keep source docs)
+docs/_build/
+docs/.doctrees/
+
+# ============================================================================
+# OS temp & backup files
+# ============================================================================
+*.bak
+*.tmp
+*.orig
+*.backup
+
 

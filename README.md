@@ -1,103 +1,300 @@
-# Khai phá dữ liệu báo điện tử tiếng Việt theo thời gian gần thực phục vụ phân tích chủ đề và phát hiện clickbait
+# AI-Powered Vietnamese News Analysis & Clickbait Detection
 
-## news-mining – Module 1: Thu thập & Chuẩn hóa Dữ liệu
+Real-time web mining, topic modeling, and automated clickbait detection for Vietnamese news articles.
 
-ref: https://www.sciencedirect.com/science/article/pii/S2352340925008856
+> **Reference:** https://www.sciencedirect.com/science/article/pii/S2352340925008856
 
-> **Web Mining** – Tự động thu thập, làm sạch và lưu trữ bài báo tiếng Việt từ VNExpress & Tuổi Trẻ vào SQLite.
+## Overview
 
----
+This project implements an end-to-end pipeline for:
+- **Automated Data Collection**: Continuous crawling of Vietnamese news from VNExpress and Tuổi Trẻ
+- **Text Normalization**: HTML cleanup, deduplication, and text standardization
+- **Clickbait Detection**: PhoBERT-based classification to identify misleading headlines
+- **Hot Topic Modeling**: BERTopic clustering to surface trending topics across timeframes
+- **Interactive Dashboard**: Real-time Streamlit UI to explore articles and analytics
 
-## Hướng dẫn trình bày thuyết trình
-
-### 1. Yêu cầu nội dung (5 ý bắt buộc)
-
-- **Bài toán:** Xác định vấn đề và mục tiêu cần giải quyết.
-- **Hướng làm:** Trình bày pipeline hoặc mô hình dự kiến.
-- **Dữ liệu:** Nguồn lấy dữ liệu, cách thu thập và xử lý.
-- **Baseline:** Chọn và trình bày một bài báo khoa học liên quan (ưu tiên paper mới nhất).
-- **Kế hoạch thực hiện:** Lộ trình, phân chia công việc, timeline.
-
-### 2. Tiêu chí đánh giá
-
-| Tiêu chí                | Điểm | Mô tả                                                                 |
-|-------------------------|------|-----------------------------------------------------------------------|
-| Ý tưởng & Hướng làm     | 35   | Hiểu rõ bài toán, có quy trình, pipeline, phân chia công việc rõ ràng |
-| Baseline (paper)        | 25   | Đọc, trình bày và áp dụng paper phù hợp cho bài toán                  |
-| Dữ liệu & Tính khả thi  | 25   | Nguồn data rõ ràng, quy trình thu thập và xử lý hợp lý                |
-| Tiến độ & Trình bày     | 15   | Trình bày mạch lạc, rõ ràng, đúng tiến độ                             |
-
-**Mục đích:**  
-- Đảm bảo ý tưởng đủ tính nghiên cứu, tránh đề tài quá đơn giản, quá rộng hoặc không khả thi.
-- Bắt buộc có dữ liệu thật, baseline rõ ràng, định hướng kết quả đo lường được.
-
-### 3. Phân công thành viên
-
-#### 👤 Thành viên 1: Hiếu (phụ trách Mở & Kết)
-- **Tìm hiểu:** Bối cảnh thực tế (tác hại clickbait, nhu cầu đọc tin sạch), cách lập kế hoạch dự án.
-- **Slide cần làm:**
-    - Slide tiêu đề & giới thiệu nhóm
-    - Slide 1: Bài toán (vấn đề & mục tiêu)
-    - Slide cuối: Kế hoạch thực hiện (timeline theo tuần)
-
-#### 👤 Thành viên 2: ???? (phụ trách Dữ liệu)
-- **Tìm hiểu:** Khảo sát các trang báo điện tử, sử dụng Python (BeautifulSoup/Selenium) để tự động thu thập tin mới, các bước làm sạch text (xóa HTML, loại bỏ trùng lặp).
-- **Slide cần làm:**
-    - Slide 2: Dữ liệu & tính khả thi (nguồn, công cụ, quy trình làm sạch)
-
-#### 👤 Thành viên 3: ???? (phụ trách Paper Baseline)
-- **Tìm hiểu:** Đọc tóm tắt paper "ViClickbait-2025", nắm số liệu chính: dataset 3414 mẫu, 31.2% là clickbait, định nghĩa clickbait.
-- **Slide cần làm:**
-    - Slide 3: Baseline (giới thiệu paper, thông số dữ liệu)
-    - Slide 4: Cách áp dụng (sử dụng bộ data, công thức đo lường)
-
-#### 👤 Thành viên 4: ???? (phụ trách Mô hình & Luồng hệ thống)
-- **Tìm hiểu:** Các mô hình AI (PhoBERT nhận diện clickbait, BERTopic gom cụm chủ đề), luồng hệ thống từ thu thập đến hiển thị.
-- **Slide cần làm:**
-    - Slide 5: Hướng làm (pipeline/mô hình, sơ đồ tổng thể, thuật toán sử dụng)
+The system runs on SQLite with automatic data pipelines orchestrated via APScheduler. A dark-themed Streamlit dashboard provides intuitive navigation through news articles, predictions, and insights.
 
 ---
 
-## Cài đặt
+## Prerequisites
 
+- **Python**: ≥ 3.10
+- **Git**: Required for cloning the repository
+- **RAM**: ≥ 4GB recommended (PhoBERT model loading and inference)
+- **Internet**: For initial data crawling and external dependencies
+
+---
+
+## Quick Start (5 Minutes)
+
+### 1. Clone the Repository
+```bash
+git clone <https://github.com/Jade2308/ai-news-content-analysis>
+cd ai-news-content-analysis
+```
+
+### 2. Create and Activate Virtual Environment
+
+**Windows:**
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+```
+
+**macOS / Linux:**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
-> **Yêu cầu:** Python ≥ 3.10
 
----
-
-## Khởi tạo cơ sở dữ liệu
-
+### 4. Initialize the Database
 ```bash
 python scripts/init_db.py
 ```
-Tạo file `news.db` với schema chuẩn (nếu chưa tồn tại).  
-> **Lưu ý:** Không commit `news.db` vào repo. Mỗi thành viên tự seed DB cục bộ.
+Creates `news.db` with standard schema. ⚠️ **Do not commit this file to the repository** — each developer seeds their local copy.
+
+### 5. Train the Clickbait Model (One-time Setup)
+```bash
+python src/models/train_clickbait.py
+```
+Downloads and fine-tunes PhoBERT on the ViClickbait dataset (~5–15 minutes depending on hardware).  
+The trained model is stored in `models/phobert_clickbait/` and loaded automatically in subsequent runs.
+
+### 6. Populate Initial Data
+```bash
+python scripts/crawl_all.py
+```
+Crawls articles from all sources, deduplicates, and applies the trained classifier. Creates a baseline of data for the dashboard.
+
+### 7. Launch the Dashboard
+```bash
+python main.py run
+# or directly:
+streamlit run dashboard.py
+```
+Open http://localhost:8501 in your browser.
 
 ---
 
-## Seed dữ liệu
+## System Architecture
 
-```bash
-# Crawl VNExpress chuyên mục kinh-doanh, tối đa 200 bài
-python scripts/seed_db.py --source vnexpress --category kinh-doanh --limit 200
-
-# Crawl Tuổi Trẻ chuyên mục thời sự, tối đa 200 bài
-python scripts/seed_db.py --source tuoitre --category thoi-su --limit 200
-
-# Crawl tất cả nguồn với limit mặc định (50 bài mỗi nguồn)
-python scripts/seed_db.py --source all --limit 50
+### Data Pipeline
+```
+Web Crawlers (VNExpress, Tuổi Trẻ)
+    ↓
+Text Normalization & Deduplication
+    ↓
+SQLite Database (articles table)
+    ↓
+PhoBERT Classification → Clickbait Predictions
+    ↓
+BERTopic Clustering → Hot Topics Detection
+    ↓
+Streamlit Dashboard (UI)
 ```
 
-### Tham số `seed_db.py`
+### Core Components
 
-| Tham số      | Mô tả                         | Mặc định                      |
-|--------------|-------------------------------|-------------------------------|
-| `--source`   | `vnexpress` / `tuoitre` / `all` | `all`                        |
-| `--category` | Chuyên mục (tùy nguồn)        | `kinh-doanh` / `thoi-su`      |
-| `--limit`    | Số bài tối đa mỗi nguồn       | `50`                          |
-| `--db-path`  | Đường dẫn DB                  | `news.db` (từ `config.py`)    |
+| Module | Purpose |
+|--------|---------|
+| `crawlers/` | Web scrapers for news sources (BeautifulSoup + Selenium) |
+| `database/` | SQLite schema, migrations, and query helpers |
+| `processing/` | Text cleaning, topic modeling, deduplication |
+| `models/` | PhoBERT clickbait classifier and evaluation utilities |
+| `scripts/` | Orchestration tasks (crawl, label, detect topics, scheduler) |
+| `dashboard.py` | Streamlit application (dark theme) |
+| `main.py` | CLI launcher for common tasks |
+
+---
+
+## Running Individual Tasks
+
+### Label Unlabeled Articles (Inference)
+Apply the trained PhoBERT model to any articles missing predictions:
+```bash
+python scripts/label_articles_with_predictions.py
+```
+
+### Detect Hot Topics
+Run topic clustering for a single timeframe (e.g., 24 hours):
+```bash
+python scripts/detect_hot_topics.py
+```
+
+### Batch Topic Detection Across All Timeframes
+Compute hot topics for 1h, 6h, 12h, 24h, and 7d windows:
+```bash
+python scripts/run_all_timeframes.py
+```
+
+### Discover New Categories
+Crawl and extract potential news categories from article metadata:
+```bash
+python scripts/discover_categories.py
+```
+
+### Automated Background Scheduler
+Run continuous crawling, classification, and topic detection (every 60 minutes):
+```bash
+python scripts/run_scheduler.py
+```
+This command launches a background process that:
+1. Crawls new articles
+2. Removes duplicates
+3. Applies PhoBERT classifier
+4. Runs topic clustering
+5. Waits 60 minutes and repeats
+
+---
+
+## Dashboard Features
+
+The Streamlit dashboard (`dashboard.py`) provides:
+- **Dark Theme UI** with modern card layouts
+- **Article Feed**: Browse recent articles with real-time predictions
+- **Hot Topics View**: See trending topics across different timeframes (1h, 6h, 24h, 1 week)
+- **Clickbait Stats**: Overview of classification results (counts, confidence scores)
+- **Search Page**: Full-text search across title and summary
+- **Article Detail Page**: Read full content with source and prediction badges
+
+Access the dashboard after running step 7 above.
+
+---
+
+## Command-Line Interface (CLI)
+
+The `main.py` script provides a convenient CLI:
+
+```bash
+# Run the dashboard on localhost:8501
+python main.py run
+
+# Initialize the database
+python main.py initdb
+
+# Interactive menu
+python main.py menu
+
+# Specify a custom port
+python main.py run --port 9999
+```
+
+---
+
+## Configuration & Environment
+
+The project uses `config.py` for centralized settings:
+- `DB_PATH`: Location of SQLite database (default: `news.db`)
+- Model paths, crawler timeouts, and database paths are configured here
+
+For sensitive data (API keys, credentials), create a `.env` file:
+```env
+# .env (not committed to repo)
+OPENAI_API_KEY=sk-...
+```
+Load with `python-dotenv`:
+```python
+from dotenv import load_dotenv
+load_dotenv()
+```
+
+---
+
+## Model Information
+
+### PhoBERT Clickbait Classifier
+- **Type**: Transformer-based classification
+- **Training Data**: ViClickbait dataset (~3,414 samples, 31.2% positive)
+- **Labels**: `clickbait` (misleading headline) vs. `non-clickbait`
+- **Location**: `models/phobert_clickbait/`
+- **Training Time**: ~5–15 minutes on CPU; faster on GPU
+- ⚠️ **Large File**: The model directory is excluded from Git (`.gitignore`). You must train it locally on first setup.
+
+### BERTopic Topic Modeling
+- Clusters similar articles into emergent topics
+- Runs on configurable timeframes (1h, 6h, 12h, 24h, 7d)
+- Results stored in `hot_topics` and `topic_articles` tables
+
+---
+
+## Repository Structure
+
+```
+ai-news-content-analysis/
+├── crawlers/              # Web scraping modules
+├── database/              # Schema, migrations, query helpers
+├── models/                # AI models (clickbait classifier)
+├── processing/            # Text cleaning, topic modeling
+├── scripts/               # Automation tasks (crawl, label, detect_hot_topics, scheduler)
+├── src/                   # Alternative source layout (models, crawlers, etc.)
+├── dashboard.py           # Streamlit UI (dark theme)
+├── main.py                # CLI launcher
+├── config.py              # Global configuration
+├── requirements.txt       # Python dependencies
+├── news.db                # SQLite database (local only, not committed)
+└── README.md              # This file
+```
+
+---
+
+## .gitignore & Sensitive Files
+
+The `.gitignore` file excludes:
+- `news.db` and all `.db` files (local database instances)
+- `models/phobert_clickbait/` and related trained models (too large)
+- `.venv/`, `__pycache__/`, and Python artifacts
+- `.streamlit/` config (Streamlit user configuration)
+- `.env` (environment variables and secrets)
+- Log files and IDE settings (`.vscode/`, `.idea/`)
+
+---
+
+## Troubleshooting
+
+### **"Cannot import streamlit"**
+Ensure `requirements.txt` has been installed:
+```bash
+pip install -r requirements.txt
+```
+
+### **"Model not found in models/phobert_clickbait/"**
+Train the model on first setup:
+```bash
+python src/models/train_clickbait.py
+```
+
+### **Database locked error**
+Close any other processes accessing `news.db` and retry.
+
+### **Streamlit stays at loading**
+- Check firewall/antivirus settings (may block localhost connections)
+- Try running with explicit local binding:
+  ```bash
+  streamlit run dashboard.py --server.address 127.0.0.1 --server.port 8501
+  ```
+
+---
+
+## Contributing
+
+When adding new features:
+1. Create a feature branch
+2. Update `.gitignore` if new artifacts (large files, secrets) are introduced
+3. Do not commit `.db` files or model checkpoints
+4. Test locally with `streamlit run dashboard.py`
+5. Update this README if adding new CLI commands or workflows
+
+---
+
+## License & Attribution
+
+This project is part of a research initiative on Vietnamese news analysis. See individual modules for dependencies and their licenses.
 
 ---
 

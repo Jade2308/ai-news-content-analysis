@@ -403,13 +403,22 @@ def get_overview_stats(hours: int, source: str, category: str, label: str) -> di
 def inject_styles():
 	st.markdown("""
 	<style>
+	:root {
+		--bg: #0f1720;
+		--panel: #0b1220;
+		--muted: #9aa4b2;
+		--text: #e6eef6;
+		--accent: #ff6b6b;
+		--card: #0d1720;
+	}
+
 	html, body, .stApp {
-		background-color: #ffffff !important;
-		color: #111111 !important;
+		background-color: var(--bg) !important;
+		color: var(--text) !important;
 	}
 
 	.stApp > header {
-		background: #ffffff !important;
+		background: transparent !important;
 	}
 
 	[data-testid="stAppViewContainer"],
@@ -417,400 +426,51 @@ def inject_styles():
 	[data-testid="stToolbar"],
 	[data-testid="stSidebar"],
 	[data-testid="stSidebarContent"] {
-		background-color: #ffffff !important;
-		color: #111111 !important;
-	}
-
-	[data-testid="stSidebar"] {
-		border-right: 1px solid #eee;
+		background-color: transparent !important;
+		color: var(--text) !important;
 	}
 
 	.block-container {
-		background-color: #ffffff !important;
-		color: #111111 !important;
+		background-color: transparent !important;
+		color: var(--text) !important;
 		padding-top: 1rem;
 	}
 
-	[data-testid="stMarkdownContainer"] p,
-	[data-testid="stMarkdownContainer"] span,
-	[data-testid="stMarkdownContainer"] div {
-		color: #111111;
-	}
+	a { color: var(--accent); }
 
-	a {
-		color: #c41e3a;
-	}
+	* { font-family: 'Segoe UI', Arial, sans-serif; }
 
-	* {
-		font-family: 'Segoe UI', Arial, sans-serif;
-	}
-	
-	.ai-news-header {
-		background: white;
-		border-bottom: 1px solid #ddd;
-		padding: 14px 18px;
-		margin: 0 0 20px 0;
-		border-radius: 8px;
-	}
-	
-	.header-top {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		margin-bottom: 10px;
-	}
-	
-	.logo {
-		font-size: 28px;
-		font-weight: 900;
-		letter-spacing: -1px;
-	}
-	
-	.logo-accent {
-		color: #c41e3a;
-	}
-	
-	.header-right {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		flex-wrap: wrap;
-		gap: 15px;
-		font-size: 13px;
-		color: #666;
-	}
+	.ai-news-header { background: transparent; padding: 14px 18px; margin-bottom: 18px; }
+	.logo { font-size: 28px; font-weight: 900; color: var(--text); }
+	.logo-accent { color: var(--accent); }
 
-	.search-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		width: 30px;
-		height: 30px;
-		border: 1px solid #ddd;
-		border-radius: 50%;
-		font-size: 14px;
-		cursor: pointer;
-		background: #fff;
-		color: #444;
-	}
+	.header-right { color: var(--muted); }
 
-	.search-icon:hover {
-		border-color: #c41e3a;
-		color: #c41e3a;
-	}
-	
-	.navbar {
-		display: flex;
-		gap: 25px;
-		padding: 10px 0;
-		margin-top: 6px;
-		border-bottom: 1px solid #eee;
-		overflow-x: auto;
-		font-size: 14px;
-	}
-	
-	.nav-link {
-		color: #333;
-		text-decoration: none;
-		white-space: nowrap;
-		font-weight: 500;
-	}
-	
-	.nav-link:hover {
-		color: #c41e3a;
-	}
-	
-	.main-container {
-		display: grid;
-		grid-template-columns: 2fr 1fr;
-		gap: 30px;
-		margin: 20px 0;
-	}
-	
-	.featured-article {
-		background: white;
-		border-radius: 2px;
-	}
-	
-	.featured-image {
-		width: 100%;
-		height: 300px;
-		background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 60px;
-		color: #aaa;
-		margin-bottom: 15px;
-	}
-	
-	.featured-meta {
-		font-size: 12px;
-		color: #999;
-		margin-bottom: 8px;
-	}
-	
-	.featured-title {
-		font-size: 24px;
-		font-weight: 800;
-		line-height: 1.3;
-		margin: 10px 0;
-		font-family: Georgia, serif;
-		color: #000;
-	}
-	
-	.featured-summary {
-		font-size: 15px;
-		line-height: 1.6;
-		color: #555;
-		margin: 15px 0;
-	}
-	
-	.featured-badge {
-		display: inline-block;
-		padding: 5px 12px;
-		border-radius: 3px;
-		font-size: 12px;
-		font-weight: bold;
-		margin-top: 10px;
-	}
-	
-	.badge-clickbait {
-		background: #fee;
-		color: #c41e3a;
-		border: 1px solid #fcc;
-	}
-	
-	.badge-safe {
-		background: #efe;
-		color: #1a7;
-		border: 1px solid #cfc;
-	}
-	
-	.badge-unlabeled {
-		background: #eee;
-		color: #666;
-		border: 1px solid #ddd;
-	}
-	
-	.sidebar {
-		background: white;
-		border-radius: 2px;
-		padding: 20px;
-	}
-	
-	.sidebar-title {
-		font-size: 15px;
-		font-weight: 700;
-		margin-bottom: 15px;
-		padding-bottom: 10px;
-		border-bottom: 2px solid #c41e3a;
-		color: #000;
-	}
-	
-	.sidebar-item {
-		padding: 12px 0;
-		border-bottom: 1px solid #eee;
-		font-size: 14px;
-	}
-	
-	.sidebar-item:last-child {
-		border-bottom: none;
-	}
-	
-	.sidebar-item-title {
-		font-weight: 600;
-		color: #000;
-		line-height: 1.35;
-		margin-bottom: 4px;
-		font-size: 14px;
-	}
-	
-	.sidebar-item-meta {
-		font-size: 12px;
-		color: #999;
-	}
-	
-	.article-grid {
-		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: 20px;
-		margin: 30px 0;
-	}
-	
-	.article-card {
-		background: white;
-		border-radius: 2px;
-		overflow: hidden;
-		border: 1px solid #eee;
-		transition: all 0.3s ease;
-	}
-	
-	.article-card:hover {
-		box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-	}
-	
-	.article-card-image {
-		width: 100%;
-		height: 160px;
-		background: linear-gradient(135deg, #f0f0f0 0%, #e8e8e8 100%);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 40px;
-		color: #bbb;
-	}
-	
-	.article-card-content {
-		padding: 15px;
-	}
-	
-	.article-card-title {
-		font-size: 14px;
-		font-weight: 700;
-		line-height: 1.4;
-		margin-bottom: 8px;
-		color: #000;
-		font-family: Georgia, serif;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		min-height: 40px;
-	}
-	
-	.article-card-meta {
-		font-size: 12px;
-		color: #999;
-		margin-bottom: 8px;
-	}
-	
-	.article-card-summary {
-		font-size: 13px;
-		line-height: 1.5;
-		color: #666;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-		margin-bottom: 10px;
-		min-height: 39px;
-	}
-	
-	.article-detail {
-		background: white;
-		border: 1px solid #eee;
-		border-radius: 2px;
-		padding: 20px;
-		margin-top: 10px;
-	}
-	
-	.article-detail-meta {
-		font-size: 12px;
-		color: #999;
-		margin-bottom: 10px;
-	}
-	
-	.article-detail-body {
-		font-size: 15px;
-		line-height: 1.8;
-		color: #222;
-		white-space: pre-wrap;
-		word-break: break-word;
-		margin-top: 15px;
-	}
-	
-	.article-detail-url {
-		margin-top: 15px;
-		font-size: 13px;
-	}
+	.navbar { display:flex; gap:18px; margin-top:6px; color:var(--muted); }
 
-	.hot-topic-wrap {
-		background: #fff;
-		border-radius: 4px;
-	}
+	.main-container { display:grid; grid-template-columns: 2fr 1fr; gap: 30px; margin: 20px 0; }
 
-	.hot-topic-head {
-		display: flex;
-		justify-content: flex-start;
-		align-items: center;
-		margin: 8px 0 14px 0;
-	}
+	.featured-article { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:8px; }
+	.featured-title { color: var(--text); font-size:24px; font-weight:800; }
+	.featured-summary { color: var(--muted); }
 
-	.hot-topic-title {
-		font-size: 24px;
-		font-family: Georgia, serif;
-		font-weight: 700;
-		line-height: 1.15;
-		color: #141414;
-	}
+	.section-title { font-size:16px; font-weight:700; margin: 40px 0 20px 0; color: var(--text); border-bottom: 2px solid rgba(255,107,107,0.12); padding-bottom:10px }
 
-	.hot-topic-divider {
-		border: none;
-		border-top: 1px solid #ddd;
-		margin: 12px 0 14px 0;
-	}
+	.sidebar { background: transparent; padding: 10px; }
+	.sidebar-title { color: var(--text); border-bottom: 2px solid rgba(255,107,107,0.12); padding-bottom:8px }
 
-	.hot-topic-item-title {
-		font-size: 18px;
-		line-height: 1.2;
-		font-family: Georgia, serif;
-		font-weight: 700;
-		color: #121212;
-		margin: 0 0 6px 0;
-	}
+	.article-card { background: var(--card); border: 1px solid rgba(255,255,255,0.03); border-radius:8px; padding:12px; }
+	.article-card-title { color: var(--text); }
+	.article-card-summary { color: var(--muted); }
 
-	.hot-topic-item-summary {
-		font-size: 14px;
-		line-height: 1.5;
-		color: #2e2e2e;
-		margin: 0;
-	}
-	
-	.section-title {
-		font-size: 16px;
-		font-weight: 700;
-		margin: 40px 0 20px 0;
-		padding-bottom: 10px;
-		border-bottom: 2px solid #c41e3a;
-		color: #000;
-	}
-	
-	.stMetric {
-		background: white !important;
-		padding: 15px !important;
-		border-radius: 2px !important;
-		border: 1px solid #eee !important;
-	}
-	
-	@media (max-width: 1024px) {
-		.main-container {
-			grid-template-columns: 1fr;
-		}
-		.article-grid {
-			grid-template-columns: repeat(2, 1fr);
-		}
-		.hot-topic-title,
-		.hot-topic-item-title {
-			font-size: 20px;
-		}
-		.hot-topic-item-summary {
-			font-size: 13px;
-		}
-	}
-	
-	@media (max-width: 768px) {
-		.article-grid {
-			grid-template-columns: 1fr;
-		}
-		.hot-topic-title,
-		.hot-topic-item-title {
-			font-size: 18px;
-		}
-		.hot-topic-item-summary {
-			font-size: 13px;
-		}
-	}
+	.badge-clickbait { background: rgba(255,90,90,0.06); color: var(--accent); border: 1px solid rgba(255,90,90,0.12); }
+	.badge-safe { background: rgba(60,220,140,0.04); color: #9be7c4; border: 1px solid rgba(60,220,140,0.08); }
+	.badge-unlabeled { background: rgba(255,255,255,0.02); color: var(--muted); border: 1px solid rgba(255,255,255,0.03); }
+
+	.stMetric { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)) !important; border-radius:8px !important; border:1px solid rgba(255,255,255,0.03) !important; padding:12px !important }
+
+	@media (max-width: 1024px) { .main-container { grid-template-columns: 1fr; } .article-grid { grid-template-columns: repeat(2,1fr); } }
+	@media (max-width: 768px) { .article-grid { grid-template-columns: 1fr; } }
 	</style>
 	""", unsafe_allow_html=True)
 
@@ -859,7 +519,8 @@ def render_search_page():
 		st.session_state.current_view = "home"
 		st.rerun()
 
-	search_text = st.text_input("", placeholder="Tìm kiếm", key="search_query")
+	# use a non-empty label and hide it to avoid Streamlit label warnings
+	search_text = st.text_input("Tìm kiếm", placeholder="Tìm kiếm", key="search_query", label_visibility="collapsed")
 
 	col1, col2 = st.columns(2)
 	with col1:
