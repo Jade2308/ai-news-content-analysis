@@ -22,6 +22,12 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config import DB_PATH
 from src.database.schema import init_db
+from src.streamlit.dashboard_ui import (
+	premium_dashboard_styles,
+	render_article_card_html,
+	render_dashboard_hero,
+	render_topic_card_html,
+)
 
 # Page config
 st.set_page_config(
@@ -418,78 +424,7 @@ def get_overview_stats(hours: int, source: str, category: str, label: str) -> di
 
 # CSS Styling
 def inject_styles():
-	st.markdown("""
-	<style>
-	:root {
-		--bg: #0f1720;
-		--panel: #0b1220;
-		--muted: #9aa4b2;
-		--text: #e6eef6;
-		--accent: #ff6b6b;
-		--card: #0d1720;
-	}
-
-	html, body, .stApp {
-		background-color: var(--bg) !important;
-		color: var(--text) !important;
-	}
-
-	.stApp > header {
-		background: transparent !important;
-	}
-
-	[data-testid="stAppViewContainer"],
-	[data-testid="stHeader"],
-	[data-testid="stToolbar"],
-	[data-testid="stSidebar"],
-	[data-testid="stSidebarContent"] {
-		background-color: transparent !important;
-		color: var(--text) !important;
-	}
-
-	.block-container {
-		background-color: transparent !important;
-		color: var(--text) !important;
-		padding-top: 1rem;
-	}
-
-	a { color: var(--accent); }
-
-	* { font-family: 'Segoe UI', Arial, sans-serif; }
-
-	.ai-news-header { background: transparent; padding: 14px 18px; margin-bottom: 18px; }
-	.logo { font-size: 28px; font-weight: 900; color: var(--text); }
-	.logo-accent { color: var(--accent); }
-
-	.header-right { color: var(--muted); }
-
-	.navbar { display:flex; gap:18px; margin-top:6px; color:var(--muted); }
-
-	.main-container { display:grid; grid-template-columns: 2fr 1fr; gap: 30px; margin: 20px 0; }
-
-	.featured-article { background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); padding:12px; border-radius:8px; }
-	.featured-title { color: var(--text); font-size:24px; font-weight:800; }
-	.featured-summary { color: var(--muted); }
-
-	.section-title { font-size:16px; font-weight:700; margin: 40px 0 20px 0; color: var(--text); border-bottom: 2px solid rgba(255,107,107,0.12); padding-bottom:10px }
-
-	.sidebar { background: transparent; padding: 10px; }
-	.sidebar-title { color: var(--text); border-bottom: 2px solid rgba(255,107,107,0.12); padding-bottom:8px }
-
-	.article-card { background: var(--card); border: 1px solid rgba(255,255,255,0.03); border-radius:8px; padding:12px; }
-	.article-card-title { color: var(--text); }
-	.article-card-summary { color: var(--muted); }
-
-	.badge-clickbait { background: rgba(255,90,90,0.06); color: var(--accent); border: 1px solid rgba(255,90,90,0.12); }
-	.badge-safe { background: rgba(60,220,140,0.04); color: #9be7c4; border: 1px solid rgba(60,220,140,0.08); }
-	.badge-unlabeled { background: rgba(255,255,255,0.02); color: var(--muted); border: 1px solid rgba(255,255,255,0.03); }
-
-	.stMetric { background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)) !important; border-radius:8px !important; border:1px solid rgba(255,255,255,0.03) !important; padding:12px !important }
-
-	@media (max-width: 1024px) { .main-container { grid-template-columns: 1fr; } .article-grid { grid-template-columns: repeat(2,1fr); } }
-	@media (max-width: 768px) { .article-grid { grid-template-columns: 1fr; } }
-	</style>
-	""", unsafe_allow_html=True)
+	st.markdown(premium_dashboard_styles(), unsafe_allow_html=True)
 
 def render_header():
 	"""Render AI News header"""
@@ -505,38 +440,36 @@ def render_header():
 	}
 	date_label = f"{weekday_map[now.weekday()]}, {now.strftime('%d/%m/%Y')}"
 	topic_mode = st.session_state.get("header_topic_mode", "Tất cả")
-	st.markdown("<div class='ai-news-header'>", unsafe_allow_html=True)
-	col_left, col_right = st.columns([3, 2])
-	with col_left:
-		st.markdown("<div class='logo'>VnNew<span class='logo-accent'>AI</span></div>", unsafe_allow_html=True)
-	with col_right:
-		right_col1, right_col2, right_col3 = st.columns([4, 4, 1])
-		with right_col1:
-			st.markdown(f"<div class='header-right'><span>{date_label}</span></div>", unsafe_allow_html=True)
-		with right_col2:
-			topic_mode = st.radio(
-				"Chế độ bài viết",
-				options=["Tất cả", "Chủ đề nóng"],
-				horizontal=True,
-				label_visibility="collapsed",
-				key="header_topic_mode",
-			)
-		with right_col3:
-			if st.button("🔍", key="open_search_page", help="Mở trang tìm kiếm"):
-				st.session_state.current_view = "search"
-				st.rerun()
-	st.markdown("</div>", unsafe_allow_html=True)
+	st.markdown("<div class='dashboard-shell'>", unsafe_allow_html=True)
+	st.markdown(render_dashboard_hero(date_label, topic_mode, 0, 0), unsafe_allow_html=True)
+	control_col1, control_col2, control_col3 = st.columns([1.3, 1.3, 1])
+	with control_col1:
+		topic_mode = st.radio(
+			"Chế độ bài viết",
+			options=["Tất cả", "Chủ đề nóng"],
+			horizontal=True,
+			label_visibility="collapsed",
+			key="header_topic_mode",
+		)
+	with control_col2:
+		st.markdown(f"<div class='filter-panel'><div class='metric-label'>Ngày hiện tại</div><div class='metric-value' style='font-size: 22px;'>{html.escape(date_label)}</div><div class='metric-help'>Giao diện newsroom premium được tối ưu cho đọc nhanh và drill-down.</div></div>", unsafe_allow_html=True)
+	with control_col3:
+		if st.button("🔍 Mở tìm kiếm", key="open_search_page", use_container_width=True, help="Mở trang tìm kiếm"):
+			st.session_state.current_view = "search"
+			st.rerun()
 	return topic_mode
 
 def render_search_page():
 	"""Render search page opened from header icon."""
-	st.markdown("## Tìm kiếm")
+	st.markdown("<div class='dashboard-shell'><div class='search-shell'>", unsafe_allow_html=True)
+	st.markdown("<div class='search-title'>Search</div>", unsafe_allow_html=True)
+	st.markdown("<h2 class='dashboard-title' style='font-size: clamp(26px, 3vw, 38px); margin-bottom: 8px;'>Tìm kiếm bài viết</h2>", unsafe_allow_html=True)
+	st.markdown("<div class='dashboard-subtitle'>Khám phá bài viết theo từ khóa, thời gian và chuyên mục với giao diện ưu tiên tốc độ đọc và drill-down.</div>", unsafe_allow_html=True)
 
 	if st.button("← Quay lại trang chính", key="back_from_search"):
 		st.session_state.current_view = "home"
 		st.rerun()
 
-	# use a non-empty label and hide it to avoid Streamlit label warnings
 	search_text = st.text_input("Tìm kiếm", placeholder="Tìm kiếm", key="search_query", label_visibility="collapsed")
 
 	col1, col2 = st.columns(2)
@@ -559,7 +492,6 @@ def render_search_page():
 
 	st.divider()
 
-# Get hours from timeframe filter (0 means all)
 	if time_filter == "Tất cả":
 		hours = 0
 	else:
@@ -577,6 +509,7 @@ def render_search_page():
 
 	if articles_df.empty:
 		st.info("Không tìm thấy bài viết phù hợp.")
+		st.markdown("</div></div>", unsafe_allow_html=True)
 		return
 
 	st.markdown(f"Tìm thấy **{len(articles_df):,}** bài viết")
@@ -586,21 +519,17 @@ def render_search_page():
 		source = str(article.get("source", ""))
 		category_name = normalize_category_label(article.get("category", ""))
 		article_id = article.get("article_id")
+		badge = get_badge_html(article.get("predicted_label"), article.get("prediction_score"))
 
 		st.markdown(
-			f"""
-			<div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:10px; background:#fff;">
-				<div style="font-weight:700; margin-bottom:6px;">{html.escape(title)}</div>
-				<div style="font-size:12px; color:#666; margin-bottom:6px;">{html.escape(source)} · {html.escape(category_name)}</div>
-				<div style="font-size:13px; color:#444;">{html.escape(summary[:180])}</div>
-			</div>
-			""",
+			render_article_card_html(title, summary[:180], source, category_name, badge, article_id),
 			unsafe_allow_html=True,
 		)
 		if st.button("🔍 Đọc bài", key=f"search_read_{article_id}"):
 			st.session_state.selected_article_id = str(article_id)
 			st.session_state.current_view = "home"
 			st.rerun()
+	st.markdown("</div></div>", unsafe_allow_html=True)
 
 def render_category_nav(categories: list[str]):
 	"""Render category chips based on available article categories."""
@@ -638,18 +567,16 @@ def render_featured_article(article):
 	source = html.escape(str(article.get("source", "")))
 	category = html.escape(normalize_category_label(article.get("category", "")))
 	badge = get_badge_html(article.get("predicted_label"), article.get("prediction_score"))
-	
+
 	st.markdown(f"""
-	<div class="featured-article">
-		<div style="padding: 15px;">
-			<div class="featured-meta"><b>{source}</b> · {category}</div>
-			<h1 class="featured-title">{title}</h1>
-			<p class="featured-summary">{summary}</p>
-			{badge}
-		</div>
+	<div class="article-featured">
+		<div class="detail-meta"><b>{source}</b> · {category}</div>
+		<h1 class="dashboard-title" style="font-size: clamp(24px, 2.8vw, 36px); margin: 8px 0 12px;">{title}</h1>
+		<p class="dashboard-subtitle" style="margin: 0 0 14px; max-width: 100%;">{summary}</p>
+		{badge}
 	</div>
 	""", unsafe_allow_html=True)
-	
+
 	if st.button("🔍 Xem chi tiết", key=f"featured_btn_{article_id}"):
 		st.session_state.selected_article_id = article_id
 		st.rerun()
@@ -711,7 +638,7 @@ def render_sidebar_highlights(articles):
 
 def render_hot_topic_feed(topics: list[dict]):
 	"""Render hot-topic list using topic content from hot_topics table."""
-	st.markdown('<div class="hot-topic-wrap">', unsafe_allow_html=True)
+	st.markdown('<div class="topic-shell"><div class="hot-topic-wrap">', unsafe_allow_html=True)
 	header_col_left, header_col_right = st.columns([2.2, 1.8], gap="large")
 	with header_col_left:
 		st.markdown('<div class="hot-topic-title">Chủ đề hot trên cộng đồng</div>', unsafe_allow_html=True)
@@ -725,7 +652,7 @@ def render_hot_topic_feed(topics: list[dict]):
 		)
 
 	st.markdown('<hr class="hot-topic-divider" />', unsafe_allow_html=True)
-	st.markdown('</div>', unsafe_allow_html=True)
+	st.markdown('</div></div>', unsafe_allow_html=True)
 
 	for idx, topic in enumerate(topics[:HOT_TOPIC_FEED_LIMIT]):
 		topic_id = topic.get("id")
@@ -734,12 +661,7 @@ def render_hot_topic_feed(topics: list[dict]):
 		summary = f"{article_count:,} bài báo"
 
 		st.markdown(
-			f'''
-			<div style="padding: 6px 0 4px 0;">
-				<h3 class="hot-topic-item-title">{title}</h3>
-				<p class="hot-topic-item-summary">{summary}</p>
-			</div>
-			''',
+			render_topic_card_html(title, summary, f"Snapshot {article_count:,} bài"),
 			unsafe_allow_html=True,
 		)
 		if st.button("Xem chủ đề", key=f"hot_topic_open_{topic_id}_{idx}"):
@@ -774,9 +696,11 @@ def render_topic_detail(topic_id: int):
 
 	st.markdown(
 		f"""
-		<div class="article-detail">
-			<div class="article-detail-meta"><b>Hot topic</b> · {html.escape(str(topic.get('timeframe') or ''))}h · {html.escape(str(topic.get('created_at') or ''))}</div>
-			<h2 style="margin: 0 0 10px 0; font-family: Georgia, serif;">{html.escape(str(topic.get('topic_name') or ''))}</h2>
+		<div class="topic-shell">
+			<div class="article-detail">
+				<div class="article-detail-meta"><b>Hot topic</b> · {html.escape(str(topic.get('timeframe') or ''))}h · {html.escape(str(topic.get('created_at') or ''))}</div>
+				<h2 style="margin: 0 0 10px 0; font-size: clamp(26px, 3vw, 40px);">{html.escape(str(topic.get('topic_name') or ''))}</h2>
+			</div>
 		</div>
 		""",
 		unsafe_allow_html=True,
@@ -795,10 +719,10 @@ def render_topic_detail(topic_id: int):
 
 		st.markdown(
 			f"""
-			<div style="border: 1px solid #eee; border-radius: 6px; padding: 12px; margin-bottom: 10px; background: white;">
-				<div style="font-size: 12px; color: #777; margin-bottom: 6px;">{source} · {published_at}</div>
-				<div style="font-size: 18px; font-weight: 700; font-family: Georgia, serif; margin-bottom: 6px;">{title}</div>
-				<div style="font-size: 14px; color: #444; line-height: 1.5;">{summary}</div>
+			<div class="detail-card">
+				<div class="detail-meta">{source} · {published_at}</div>
+				<div class="topic-card-title" style="font-size: 18px;">{title}</div>
+				<div class="topic-card-summary">{summary}</div>
 			</div>
 			""",
 			unsafe_allow_html=True,
@@ -811,121 +735,55 @@ def render_topic_detail(topic_id: int):
 def render_article_detail(article_id):
 	"""Render detail page for a specific article"""
 	article = get_article_by_id(article_id)
-	
+
 	if not article:
 		st.error("Không tìm thấy bài báo")
 		if st.button("← Quay lại"):
 			st.session_state.selected_article_id = None
 			st.rerun()
 		return
-	
-	# Header with back button
-	col1, col2 = st.columns([1, 10])
+
+	col1, _ = st.columns([1, 10])
 	with col1:
 		if st.button("← Quay lại"):
 			st.session_state.selected_article_id = None
 			st.rerun()
-	
-	# Article content
-	title = article.get("title", "")
+
+	title = html.escape(str(article.get("title", "")))
 	source = html.escape(str(article.get("source", "")))
-	category = normalize_category_label(article.get("category", ""))
-	published_at = article.get("published_at", "")
-	crawled_at = article.get("crawled_at", "")
-	content_text = article.get("content_text", "")
-	summary = article.get("summary", "")
-	url = article.get("url", "")
+	category = html.escape(normalize_category_label(article.get("category", "")))
+	published_at = html.escape(str(article.get("published_at", "")))
+	crawled_at = html.escape(str(article.get("crawled_at", "")))
+	content_text = str(article.get("content_text", "") or "").strip()
+	summary = html.escape(str(article.get("summary", "") or ""))
+	url = str(article.get("url", "") or "").strip()
 	label = article.get("predicted_label", "Chưa gán nhãn")
 	raw_score = article.get("prediction_score", 0)
 	try:
 		score = float(raw_score) if raw_score is not None else 0.0
 	except (TypeError, ValueError):
 		score = 0.0
-	
-	st.markdown(f"""
-	<style>
-		.article-detail-page {{
-			padding: 20px;
-			background: white;
-			border-radius: 8px;
-		}}
-		.article-detail-title {{
-			font-size: 28px;
-			font-weight: bold;
-			margin-bottom: 15px;
-			color: #1a1a1a;
-		}}
-		.article-detail-meta {{
-			display: flex;
-			gap: 20px;
-			margin-bottom: 15px;
-			font-size: 14px;
-			color: #666;
-		}}
-		.article-detail-meta-item {{
-			display: flex;
-			align-items: center;
-			gap: 5px;
-		}}
-		.article-detail-badge {{
-			display: inline-block;
-			padding: 8px 12px;
-			border-radius: 20px;
-			font-size: 13px;
-			font-weight: bold;
-			margin-bottom: 20px;
-		}}
-		.badge-clickbait {{
-			background: #ffe0e0;
-			color: #cc0000;
-		}}
-		.badge-non-clickbait {{
-			background: #e0f0ff;
-			color: #0066cc;
-		}}
-		.article-detail-content {{
-			font-size: 16px;
-			line-height: 1.8;
-			color: #333;
-			margin: 20px 0;
-		}}
-	</style>
-	<div class="article-detail-page">
-		<div class="article-detail-title">{html.escape(title)}</div>
-		<div class="article-detail-meta">
-			<div class="article-detail-meta-item"><strong>Nguồn:</strong> {source}</div>
-			<div class="article-detail-meta-item"><strong>Danh mục:</strong> {category}</div>
-			<div class="article-detail-meta-item"><strong>Xuất bản:</strong> {published_at}</div>
+
+	badge_html = get_badge_html(label, score)
+	content_html = html.escape(content_text).replace("\n", "<br>") if content_text else "Chưa có nội dung đầy đủ."
+	url_html = f'<div class="article-detail-url">🔗 <a href="{html.escape(url)}" target="_blank" rel="noopener noreferrer">Mở bài gốc</a></div>' if url else ""
+
+	st.markdown(
+		f"""
+		<div class="detail-shell">
+			<div class="article-detail">
+				<div class="article-detail-meta"><b>{source}</b> · {category} · {published_at or crawled_at}</div>
+				<h2 style="margin: 0 0 10px 0; font-size: clamp(26px, 3vw, 40px); line-height: 1.15;">{title}</h2>
+				<div style="margin-bottom: 10px;">{badge_html}</div>
+				<p style="font-size: 16px; line-height: 1.7; color: var(--muted-strong); margin: 0;">{summary}</p>
+				<div class="article-detail-body">{content_html}</div>
+				{url_html}
+			</div>
 		</div>
-	</div>
-	""", unsafe_allow_html=True)
-	
-	# Badge
-	if label == "clickbait":
-		badge_html = f'<div class="article-detail-badge badge-clickbait">🚨 Clickbait ({score:.2%})</div>'
-	elif label == "non-clickbait":
-		badge_html = f'<div class="article-detail-badge badge-non-clickbait">✅ Bình thường ({score:.2%})</div>'
-	else:
-		badge_html = '<div class="article-detail-badge">⏳ Chưa gán nhãn</div>'
-	
-	st.markdown(badge_html, unsafe_allow_html=True)
-	
-	# Summary
-	if summary:
-		st.markdown("### 📌 Tóm tắt")
-		st.write(summary)
-	
-	# Content
-	if content_text:
-		st.markdown("### 📄 Nội dung")
-		st.write(content_text)
-	
-	# URL
-	if url:
-		st.markdown("### 🔗 Liên kết")
-		st.markdown(f"[Đọc trên trang gốc]({url})", unsafe_allow_html=False)
-	
-	# Metadata
+		""",
+		unsafe_allow_html=True,
+	)
+
 	st.divider()
 	col1, col2, col3 = st.columns(3)
 	with col1:
@@ -1132,11 +990,14 @@ def main():
 		render_sidebar_highlights(prepare_article_records(articles.iloc[1:]))
 
 	# Article grid - clickable cards
-	st.markdown("<h3 class='section-title'>TIN MỚI NHẤT (Bấm để xem chi tiết)</h3>", unsafe_allow_html=True)
+	st.markdown("<h3 class='section-title'>TIN MỚI NHẤT</h3>", unsafe_allow_html=True)
+	st.markdown("<div class='section-subtitle'>Bấm vào từng thẻ để xem chi tiết bài viết trong bố cục premium mới.</div>", unsafe_allow_html=True)
 	
 	grid_articles = prepare_article_records(articles.iloc[5:])
 	if grid_articles:
 		render_article_grid_clickable(grid_articles)
+
+	st.markdown("</div>", unsafe_allow_html=True)
 
 if __name__ == "__main__":
 	main()
