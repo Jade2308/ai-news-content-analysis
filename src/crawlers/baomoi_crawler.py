@@ -6,9 +6,9 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from .base_crawler import BaseCrawler
-from src.crawlers.utils import normalize_text, parse_time
+from src.core.utils import normalize_text, parse_time
 from src.core.types import Article
-from src.processing.clean_text import extract_text_from_html, clean_text
+from src.core.clean_text import extract_text_from_html, clean_text
 
 logger = logging.getLogger(__name__)
 

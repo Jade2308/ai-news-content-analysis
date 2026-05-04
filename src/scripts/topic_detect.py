@@ -5,11 +5,15 @@ import argparse
 import requests
 from dotenv import load_dotenv
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Ensure project root (parent of `src`) is on sys.path.
+# __file__ -> .../project/src/scripts/topic_detect.py
+# dirname(dirname(dirname(__file__))) -> project root
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from database.db import get_articles_by_timerange, save_hot_topics
-from processing.topic_bertopic import TopicAnalyzer
+from src.database.db import get_articles_by_timerange, save_hot_topics
+from src.core.topic_bertopic import TopicAnalyzer
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

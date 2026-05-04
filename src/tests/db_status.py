@@ -8,9 +8,12 @@ import sys
 import os
 import sqlite3
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Ensure project root is on sys.path.
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
 
-from config import DB_PATH
+from src.config import DB_PATH
 
 
 def check_database():
@@ -26,7 +29,7 @@ def check_database():
         print(f"✅ Database file exists ({size:.2f} MB)")
     else:
         print(f"❌ Database file does NOT exist")
-        print(f"Run: python scripts/crawl_all.py")
+        print(f"Run: python src/scripts/crawl_all.py")
         return
     
     try:
@@ -51,7 +54,7 @@ def check_database():
         print(f"✅ Total articles: {total}")
         
         if total == 0:
-            print(f"\n⚠️  Database is empty. Run: python scripts/crawl_all.py")
+            print(f"\n⚠️  Database is empty. Run: python src/scripts/crawl_all.py")
             conn.close()
             return
         

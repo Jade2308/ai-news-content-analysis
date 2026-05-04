@@ -120,6 +120,23 @@ def extract_first_image_url(raw_html: str | None) -> str | None:
 		return img_url
 	return None
 
+
+def prepare_article_records(df: pd.DataFrame) -> list[dict]:
+	"""Sanitize article DataFrame and return list of dict records.
+
+	Ensures `prediction_score` exists and is a float within [0.0, 1.0].
+	Returns an empty list for empty/None inputs.
+	"""
+	if df is None or df.empty:
+		return []
+	df = df.copy()
+	if "prediction_score" in df.columns:
+		df["prediction_score"] = pd.to_numeric(df["prediction_score"], errors="coerce").fillna(0.0).clip(0.0, 1.0)
+	else:
+		df["prediction_score"] = 0.0
+	# Convert to native python types for safety
+	return df.to_dict("records")
+
 def _build_article_where_clause(
 	hours: int,
 	source: str | None = None,
@@ -563,7 +580,7 @@ def render_search_page():
 		return
 
 	st.markdown(f"Tìm thấy **{len(articles_df):,}** bài viết")
-	for article in articles_df.head(30).to_dict("records"):
+	for article in prepare_article_records(articles_df.head(30)):
 		title = str(article.get("title", ""))
 		summary = str(article.get("summary", ""))
 		source = str(article.get("source", ""))
@@ -770,7 +787,7 @@ def render_topic_detail(topic_id: int):
 		return
 
 	st.markdown(f"### Bài viết trong chủ đề ({len(articles_df):,})")
-	for idx, article in enumerate(articles_df.to_dict("records")):
+	for idx, article in enumerate(prepare_article_records(articles_df)):
 		title = html.escape(str(article.get("title", "") or "(Không có tiêu đề)"))
 		summary = html.escape(str(article.get("summary", "") or "Chưa có tóm tắt."))
 		source = html.escape(str(article.get("source", "")))
@@ -819,7 +836,11 @@ def render_article_detail(article_id):
 	summary = article.get("summary", "")
 	url = article.get("url", "")
 	label = article.get("predicted_label", "Chưa gán nhãn")
-	score = article.get("prediction_score", 0)
+	raw_score = article.get("prediction_score", 0)
+	try:
+		score = float(raw_score) if raw_score is not None else 0.0
+	except (TypeError, ValueError):
+		score = 0.0
 	
 	st.markdown(f"""
 	<style>
@@ -947,7 +968,11 @@ def render_article_grid_clickable(articles):
 		source = str(article.get("source", ""))
 		category = normalize_category_label(article.get("category", ""))
 		label = article.get("predicted_label", "unknown")
-		score = article.get("prediction_score", 0)
+		raw_score = article.get("prediction_score", 0)
+		try:
+			score = float(raw_score) if raw_score is not None else 0.0
+		except (TypeError, ValueError):
+			score = 0.0
 		
 		with cols[idx % 2]:
 			# Create a container for the card
@@ -1099,15 +1124,17 @@ def main():
 	col_left, col_right = st.columns([2, 1], gap="large")
 	
 	with col_left:
-		render_featured_article(articles.iloc[0].to_dict())
+		featured = prepare_article_records(articles.head(1))
+		if featured:
+			render_featured_article(featured[0])
 	
 	with col_right:
-		render_sidebar_highlights(articles.iloc[1:].to_dict("records"))
+		render_sidebar_highlights(prepare_article_records(articles.iloc[1:]))
 
 	# Article grid - clickable cards
 	st.markdown("<h3 class='section-title'>TIN MỚI NHẤT (Bấm để xem chi tiết)</h3>", unsafe_allow_html=True)
 	
-	grid_articles = articles.iloc[5:].to_dict("records")
+	grid_articles = prepare_article_records(articles.iloc[5:])
 	if grid_articles:
 		render_article_grid_clickable(grid_articles)
 

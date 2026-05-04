@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-scripts/label_articles_with_predictions.py
-Dự đoán nhãn cho tất cả articles chưa predict và lưu vào database
+scripts/label_predictions.py
+Chạy dự đoán nhãn cho tất cả articles chưa predict và lưu vào database
 """
 
 import sys
@@ -10,16 +10,21 @@ import logging
 import argparse
 import sqlite3
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Ensure project root (parent of `src`) is on sys.path.
+# __file__ -> .../project/src/scripts/pred_label.py
+# dirname(dirname(dirname(__file__))) -> project root
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from database.predictions import (
+from src.database.predictions import (
     add_batch_predictions,
     get_unpredicted_articles,
     get_prediction_stats,
     get_sample_predictions
 )
-from database.schema import init_db
-from config import DB_PATH
+from src.database.schema import init_db
+from src.config import DB_PATH
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,7 +49,7 @@ def get_article_counts():
 
 
 def run_labeling(
-    model_path: str = 'models/phobert_clickbait',
+    model_path: str = 'results/models/phobert_clickbait',
     model_version: str = 'phobert_v1.0',
     batch_size: int = 32,
     show_samples: bool = False,
@@ -76,7 +81,7 @@ def run_labeling(
 
         if total_articles == 0:
             logger.warning("⚠️ Database is empty: chưa có bài viết nào được crawl vào bảng articles.")
-            logger.warning("   Hãy chạy: python scripts/crawl_all.py")
+            logger.warning("   Hãy chạy: python src/scripts/crawl_all.py")
         else:
             logger.info("✅ All articles already predicted!")
             logger.info(f"   Total articles: {total_articles}")
@@ -158,7 +163,7 @@ def run_labeling(
 
 def main():
     parser = argparse.ArgumentParser(description='Label articles with model predictions')
-    parser.add_argument('--model-path', default='models/phobert_clickbait', 
+    parser.add_argument('--model-path', default='results/models/phobert_clickbait', 
                        help='Path to model directory')
     parser.add_argument('--model-version', default='phobert_v1.0',
                        help='Model version name')

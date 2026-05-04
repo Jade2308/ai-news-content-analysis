@@ -10,11 +10,13 @@ import argparse
 import os
 import sys
 
-# Ensure src is on sys.path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Ensure project root (parent of `src`) is on sys.path.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from config import DB_PATH
-from database.schema import init_db
+from src.config import DB_PATH
+from src.database.schema import init_db
 
 
 def main():

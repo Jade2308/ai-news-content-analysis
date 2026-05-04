@@ -9,9 +9,12 @@ import os
 import sqlite3
 from datetime import datetime, timedelta
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Ensure project root (parent of `src`) is on sys.path.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from config import DB_PATH
+from src.config import DB_PATH
 
 
 def print_stats():

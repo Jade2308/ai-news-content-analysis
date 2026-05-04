@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 
 # Đảm bảo chạy đúng thư mục gốc dự án
-project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(project_root)
 
 logging.basicConfig(
@@ -18,7 +18,7 @@ def run_job():
     logging.info("ĐANG KÍCH HOẠT SCRIPT `crawl_hourly.py`...")
     try:
         # sys.executable đảm bảo dùng đúng file python trong môi trường ảo (.venv) hiện tại
-        subprocess.run([sys.executable, "scripts/crawl_hourly.py"])
+        subprocess.run([sys.executable, "src/scripts/crawl_hourly.py"])
         logging.info("✅ HOÀN TẤT PHIÊN LÀM VIỆC!")
     except Exception as e:
         logging.error(f"❌ Lỗi khi chạy: {e}")

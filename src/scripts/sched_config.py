@@ -23,7 +23,7 @@ def hourly_job():
     logger.info(f"========== Bắt đầu lịch trình lúc {now.strftime('%Y-%m-%d %H:%M:%S')} ==========")
     
     crawl_script = os.path.join(BASE_DIR, 'crawl_hourly.py')
-    detect_script = os.path.join(BASE_DIR, 'detect_hot_topics.py')
+    detect_script = os.path.join(BASE_DIR, 'topic_detect.py')
     
     # 1. Luôn chạy Crawl hằng giờ
     logger.info(f"[{now.strftime('%H:%M')}] -> Đang chạy Crawl dữ liệu...")

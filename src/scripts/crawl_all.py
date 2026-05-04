@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-scripts/crawl_all.py
+src/scripts/crawl_all.py
 Crawl tất cả báo, tất cả chuyên mục và lưu vào database
 """
 
@@ -9,14 +9,17 @@ import os
 import logging
 import time
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'src'))
+# Add project root (parent of `src`) to sys.path so src.* imports resolve consistently.
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 
-from crawlers.baomoi_crawler import BaomoiCrawler
-from crawlers.tuoitre_crawler import TuoitreCrawler
-from crawlers.vnexpress_crawler import VNExpressCrawler
-from crawlers.vietnamnet_crawler import VietnamNetCrawler
-from database.schema import init_db
+from src.crawlers.baomoi_crawler import BaomoiCrawler
+from src.crawlers.tuoitre_crawler import TuoitreCrawler
+from src.crawlers.vnexpress_crawler import VNExpressCrawler
+from src.crawlers.vietnamnet_crawler import VietnamNetCrawler
+from src.database.schema import init_db
+from src.scripts.pred_label import run_labeling
 
 logging.basicConfig(
     level=logging.INFO,
@@ -117,7 +120,7 @@ def main():
 
     logger.info("\nStarting automatic labeling after crawl...")
     run_labeling(
-        model_path='models/phobert_clickbait',
+        model_path='results/models/phobert_clickbait',
         model_version='phobert_v1.0',
         batch_size=32,
         show_samples=False,

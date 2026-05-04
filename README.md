@@ -55,7 +55,7 @@ pip install -r requirements.txt
 
 ### 4. Initialize the Database
 ```bash
-python scripts/init_db.py
+python src/scripts/db_init.py
 ```
 Creates `news.db` with standard schema. ⚠️ **Do not commit this file to the repository** — each developer seeds their local copy.
 
@@ -68,9 +68,29 @@ The trained model is stored in `results/models/phobert_clickbait/` and loaded au
 
 ### 6. Populate Initial Data
 ```bash
-python scripts/crawl_all.py
+python src/scripts/crawl_all.py
 ```
 Crawls articles from all sources, deduplicates, and applies the trained classifier. Creates a baseline of data for the dashboard.
+
+Or using the unified CLI:
+```bash
+python main.py crawl-all
+```
+
+### 6.1 Choose the Right Crawl Mode
+
+- Full baseline crawl (first setup or major refresh):
+    ```bash
+    python main.py crawl-all
+    ```
+- Fast incremental crawl (hourly/new-only):
+    ```bash
+    python main.py crawl-hourly
+    ```
+- Selective crawl (source/category/limit):
+    ```bash
+    python main.py seed --source vnexpress --category kinh-doanh --limit 50
+    ```
 
 ### 7. Launch the Dashboard
 ```bash
@@ -105,10 +125,11 @@ Streamlit Dashboard (UI)
 |--------|---------|
 | `crawlers/` | Web scrapers for news sources (BeautifulSoup + Selenium) |
 | `src/database/` | SQLite schema, migrations, and query helpers |
-| `processing/` | Text cleaning, topic modeling, deduplication |
+| `src/core/` | Core types and utilities, including text cleaning and topic modeling |
 | `models/` | PhoBERT clickbait classifier and evaluation utilities |
-| `scripts/` | Orchestration tasks (crawl, label, detect topics, scheduler) |
-| `dashboard.py` | Streamlit application (dark theme) |
+| `src/scripts/` | Orchestration tasks (crawl, label, detect topics, scheduler) |
+| `src/streamlit/` | Streamlit dashboard UI application |
+| `src/tests/` | Test and check utilities |
 | `main.py` | CLI launcher for common tasks |
 
 ---
@@ -118,31 +139,50 @@ Streamlit Dashboard (UI)
 ### Label Unlabeled Articles (Inference)
 Apply the trained PhoBERT model to any articles missing predictions:
 ```bash
-python scripts/label_articles_with_predictions.py
+python src/scripts/pred_label.py
+```
+
+Or via `main.py`:
+```bash
+python main.py label --show-samples
 ```
 
 ### Detect Hot Topics
 Run topic clustering for a single timeframe (e.g., 24 hours):
 ```bash
-python scripts/detect_hot_topics.py
+python src/scripts/topic_detect.py
+```
+
+Or via `main.py`:
+```bash
+python main.py topics --hours 24 --top-n 10
 ```
 
 ### Batch Topic Detection Across All Timeframes
 Compute hot topics for 1h, 6h, 12h, 24h, and 7d windows:
 ```bash
-python scripts/run_all_timeframes.py
+python src/scripts/topic_run_timeframes.py
+```
+
+Or via `main.py`:
+```bash
+python main.py topics-all
 ```
 
 ### Discover New Categories
 Crawl and extract potential news categories from article metadata:
 ```bash
-python scripts/discover_categories.py
+python src/scripts/topic_discover.py
 ```
 
 ### Automated Background Scheduler
 Run continuous crawling, classification, and topic detection (every 60 minutes):
 ```bash
-python scripts/run_scheduler.py
+python src/scripts/sched_run.py
+```
+Recommended daemon entrypoint via `main.py`:
+```bash
+python main.py scheduler
 ```
 This command launches a background process that:
 1. Crawls new articles
@@ -155,7 +195,7 @@ This command launches a background process that:
 
 ## Dashboard Features
 
-The Streamlit dashboard (`dashboard.py`) provides:
+The Streamlit dashboard (`src/streamlit/dashboard.py`) provides:
 - **Dark Theme UI** with modern card layouts
 - **Article Feed**: Browse recent articles with real-time predictions
 - **Hot Topics View**: See trending topics across different timeframes (1h, 6h, 24h, 1 week)
@@ -169,7 +209,7 @@ Access the dashboard after running step 7 above.
 
 ## Command-Line Interface (CLI)
 
-The `main.py` script provides a convenient CLI:
+The `main.py` script provides a unified CLI for core workflows:
 
 ```bash
 # Run the dashboard on localhost:8501
@@ -177,6 +217,31 @@ python main.py run
 
 # Initialize the database
 python main.py initdb
+
+# Full crawl (all configured sources/categories)
+python main.py crawl-all
+
+# Incremental crawl (new articles only)
+python main.py crawl-hourly
+
+# Selective crawl
+python main.py seed --source all --limit 50
+
+# Label unlabeled articles with the clickbait model
+python main.py label --model-path results/models/phobert_clickbait --batch-size 32
+
+# Detect topics for one timeframe
+python main.py topics --hours 24 --top-n 10
+
+# Detect topics for all timeframes (1h/6h/12h/24h/168h)
+python main.py topics-all
+
+# Run scheduler daemon (hourly automation)
+python main.py scheduler
+
+# DB health and DB statistics
+python main.py db-check
+python main.py db-query
 
 # Interactive menu
 python main.py menu
@@ -212,7 +277,7 @@ load_dotenv()
 - **Type**: Transformer-based classification
 - **Training Data**: ViClickbait dataset (~3,414 samples, 31.2% positive)
 - **Labels**: `clickbait` (misleading headline) vs. `non-clickbait`
-- **Location**: `models/phobert_clickbait/`
+- **Location**: `results/models/phobert_clickbait/`
 - **Training Time**: ~5–15 minutes on CPU; faster on GPU
 - ⚠️ **Large File**: The model directory is excluded from Git (`.gitignore`). You must train it locally on first setup.
 
@@ -230,13 +295,9 @@ ai-news-content-analysis/
 ├── src/                           # Main source code
 │   ├── crawlers/                  # Web scraping modules
 │   ├── core/                      # Core types and utilities
-│   ├── processing/                # Text cleaning, topic modeling
 │   ├── config.py                  # Global configuration
-│   ├── dashboard.py               # Streamlit UI (dark theme)
-│   ├── check_dates.py             # Utility scripts
-│   ├── check_stats.py
-│   ├── debug_stats.py
-│   └── test_dashboard.py
+│   ├── streamlit/                 # Streamlit UI
+│   └── tests/                     # Test and check utilities
 ├── data/                          # Data artifacts
 │   ├── clickbait_dataset_vietnamese.csv
 │   ├── discovered_categories.json
@@ -246,20 +307,25 @@ ai-news-content-analysis/
 │   ├── models/                    # AI models (clickbait classifier)
 │   │   └── phobert_clickbait/    # PhoBERT fine-tuned model
 │   └── evaluation_results/        # Model evaluation metrics
-├── scripts/                       # Automation and utility scripts
-│   ├── init_db.py                # Database initialization
-│   ├── crawl_all.py              # Full crawl pipeline
-│   ├── crawl_hourly.py           # Hourly incremental crawl
-│   ├── detect_hot_topics.py      # Topic detection
-│   ├── label_articles_with_predictions.py
-│   ├── discover_categories.py
-│   ├── run_all_timeframes.py
-│   ├── run_scheduler.py
-│   ├── scheduler.py
-│   ├── query_articles.py
-│   ├── list_models.py
-│   ├── check_db.py
-│   └── seed_db.py
+├── src/scripts/                   # Automation and utility scripts
+│   ├── crawl_all.py               # Full crawl pipeline
+│   ├── crawl_hourly.py            # Hourly incremental crawl
+│   ├── db_init.py                 # Database initialization
+│   ├── db_seed.py                 # Database seeding
+│   ├── model_list.py              # Model listing utility
+│   ├── pred_label.py              # Prediction/labeling
+│   ├── query_articles.py          # Article querying
+│   ├── sched_config.py            # Scheduler configuration
+│   ├── sched_run.py               # Scheduler runner
+│   ├── topic_detect.py            # Topic detection
+│   ├── topic_discover.py          # Category discovery
+│   └── topic_run_timeframes.py    # Multi-timeframe topic analysis
+├── src/tests/                     # Test and check utilities
+│   ├── dashboard_test.py          # Dashboard tests
+│   ├── dates_check.py             # Date utility checks
+│   ├── db_status.py               # Database status check
+│   ├── stats_check.py             # Statistics checks
+│   └── stats_debug.py             # Debug statistics
 ├── main.py                        # CLI launcher
 ├── requirements.txt               # Python dependencies
 ├── README.md                      # This file

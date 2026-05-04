@@ -11,12 +11,12 @@ def main():
     timeframes = [1, 6, 12, 24, 168]
     python_executable = sys.executable
     
-    script_path = os.path.join(os.path.dirname(__file__), 'detect_hot_topics.py')
+    script_path = os.path.join(os.path.dirname(__file__), 'topic_detect.py')
     
     for tf in timeframes:
         logger.info(f"========== Bắt đầu chạy phát hiện chủ đề cho khoảng thời gian: {tf} giờ ==========")
         try:
-            # Dùng subprocess để chạy script detect_hot_topics.py
+            # Dùng subprocess để chạy script topic_detect.py
             subprocess.run(
                 [python_executable, script_path, '--hours', str(tf)],
                 check=True
