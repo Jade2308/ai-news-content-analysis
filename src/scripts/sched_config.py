@@ -24,27 +24,31 @@ def hourly_job():
     
     crawl_script = os.path.join(BASE_DIR, 'crawl_hourly.py')
     detect_script = os.path.join(BASE_DIR, 'topic_detect.py')
+    clean_script = os.path.join(BASE_DIR, 'db_clean.py')
     
     # 1. Luôn chạy Crawl hằng giờ
     logger.info(f"[{now.strftime('%H:%M')}] -> Đang chạy Crawl dữ liệu...")
     run_script(crawl_script)
     
-    # 2. Luôn chạy phân tích chủ đề 1h
+    # 2. Luôn chạy phân tích chủ đề 1h (Đề xuất: 3 chủ đề)
     logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 1 giờ gần nhất...")
-    run_script(detect_script, '--hours', '1')
+    run_script(detect_script, '--hours', '1', '--top_n', '3')
     
-    # 3. Phân tích 6h vào các mốc: 00h, 06h, 12h, 18h
+    # 3. Phân tích 6h vào các mốc: 00h, 06h, 12h, 18h (Đề xuất: 5 chủ đề)
     if now.hour in (0, 6, 12, 18):
         logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 6 giờ (Mốc 00, 06, 12, 18)...")
-        run_script(detect_script, '--hours', '6')
+        run_script(detect_script, '--hours', '6', '--top_n', '5')
         
-    # 4. Phân tích 24h và 1 Tuần vào mốc 00h
+    # 4. Phân tích 24h, 1 Tuần, và Dọn dẹp Database vào mốc 00h
     if now.hour == 0:
-        logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 24h (Cuối ngày)...")
-        run_script(detect_script, '--hours', '24')
+        logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 24h (Cuối ngày) (Đề xuất: 10 chủ đề)...")
+        run_script(detect_script, '--hours', '24', '--top_n', '10')
         
-        logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 1 tuần (168h)...")
-        run_script(detect_script, '--hours', '168')
+        logger.info(f"[{now.strftime('%H:%M')}] -> Phân tích chủ đề 1 tuần (168h) (Đề xuất: 20 chủ đề)...")
+        run_script(detect_script, '--hours', '168', '--top_n', '20')
+        
+        logger.info(f"[{now.strftime('%H:%M')}] -> Dọn dẹp dữ liệu cũ hơn 14 ngày...")
+        run_script(clean_script, '--days', '14')
         
     logger.info("========== Hoàn tất lịch trình ==========\n")
 

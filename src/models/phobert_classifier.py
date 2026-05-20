@@ -6,7 +6,6 @@ from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 logger = logging.getLogger(__name__)
-FALLBACK_MODEL_NAME = "vinai/phobert-base"
 
 
 def _has_model_weights(model_dir: Path) -> bool:
@@ -51,36 +50,21 @@ class PhoBERTClickbaitClassifier:
 
         local_model_path = Path(model_name)
         if local_model_path.exists() and local_model_path.is_dir() and not _has_model_weights(local_model_path):
-            logger.warning(
-                "Local model directory %s has no weight files; falling back to %s",
-                model_name,
-                FALLBACK_MODEL_NAME,
-            )
-            model_source = FALLBACK_MODEL_NAME
+            raise ValueError(f"Local model directory {model_name} has no weight files.")
 
-        if not local_model_path.exists() and model_name != FALLBACK_MODEL_NAME:
-            logger.warning(
-                "Model path %s does not exist; falling back to %s",
-                model_name,
-                FALLBACK_MODEL_NAME,
-            )
-            model_source = FALLBACK_MODEL_NAME
+        if not local_model_path.exists() and "/" not in model_name and "\\" not in model_name:
+            # It might be a Hugging Face hub model identifier, let it pass
+            pass
+        elif not local_model_path.exists():
+            # If it looks like a path but doesn't exist
+            pass
 
         
         try:
             self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)
         except Exception as tokenizer_error:
-            if tokenizer_source != FALLBACK_MODEL_NAME:
-                logger.warning(
-                    "Failed to load tokenizer from %s: %s. Falling back to %s",
-                    tokenizer_source,
-                    tokenizer_error,
-                    FALLBACK_MODEL_NAME,
-                )
-                self.tokenizer = AutoTokenizer.from_pretrained(FALLBACK_MODEL_NAME)
-            else:
-                logger.error(f"Failed to load tokenizer {tokenizer_source}: {tokenizer_error}")
-                raise
+            logger.error(f"Failed to load tokenizer {tokenizer_source}: {tokenizer_error}")
+            raise
 
         try:
             self.model = AutoModelForSequenceClassification.from_pretrained(
@@ -88,20 +72,8 @@ class PhoBERTClickbaitClassifier:
                 num_labels=2
             )
         except Exception as model_error:
-            if model_source != FALLBACK_MODEL_NAME:
-                logger.warning(
-                    "Failed to load model from %s: %s. Falling back to %s",
-                    model_source,
-                    model_error,
-                    FALLBACK_MODEL_NAME,
-                )
-                self.model = AutoModelForSequenceClassification.from_pretrained(
-                    FALLBACK_MODEL_NAME,
-                    num_labels=2,
-                )
-            else:
-                logger.error(f"Failed to load model {model_source}: {model_error}")
-                raise
+            logger.error(f"Failed to load model {model_source}: {model_error}")
+            raise
         
         self.model.to(self.device)
         self.model.eval()
@@ -209,12 +181,7 @@ class PhoBERTClickbaitClassifier:
         local_model_path = Path(model_path)
 
         if local_model_path.exists() and local_model_path.is_dir() and not _has_model_weights(local_model_path):
-            logger.warning(
-                "Local model directory %s has no weight files; falling back to %s",
-                model_path,
-                FALLBACK_MODEL_NAME,
-            )
-            model_source = FALLBACK_MODEL_NAME
+            raise ValueError(f"Local model directory {model_path} has no weight files.")
 
         self.model = AutoModelForSequenceClassification.from_pretrained(model_source)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)

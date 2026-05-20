@@ -247,5 +247,49 @@ def get_latest_hot_topics(timeframe_hours: int, db_path: str = DB_PATH) -> list:
     return topics
 
 
+def clean_old_data(days: int = 14, db_path: str = DB_PATH) -> Tuple[int, int, int]:
+    """
+    Xóa dữ liệu cũ trong database news.db:
+    1. Giữ lại articles trong `days` ngày gần đây (dựa trên crawled_at).
+    2. Giữ lại hot_topics trong `days` ngày gần đây (dựa trên created_at).
+    3. Xóa các bản ghi trong topic_articles có topic_id không tồn tại trong hot_topics hoặc article_id không có trong articles.
+    """
+    conn = get_connection(db_path)
+    cursor = conn.cursor()
+    
+    threshold_dt = datetime.now(_VN_TZ) - timedelta(days=days)
+    threshold_str = threshold_dt.strftime('%Y-%m-%d %H:%M:%S')
+    
+    try:
+        # 1. Xóa articles cũ
+        cursor.execute("DELETE FROM articles WHERE crawled_at < ?", (threshold_str,))
+        deleted_articles = cursor.rowcount
+        
+        # 2. Xóa hot_topics cũ
+        cursor.execute("DELETE FROM hot_topics WHERE created_at < ?", (threshold_str,))
+        deleted_topics = cursor.rowcount
+        
+        # 3. Xóa các bản ghi trong topic_articles mồ côi
+        cursor.execute("DELETE FROM topic_articles WHERE topic_id NOT IN (SELECT id FROM hot_topics)")
+        deleted_topic_articles = cursor.rowcount
+        
+        # Xóa thêm các bản ghi liên kết tới article không tồn tại
+        cursor.execute("DELETE FROM topic_articles WHERE article_id NOT IN (SELECT article_id FROM articles)")
+        deleted_topic_articles += cursor.rowcount
+        
+        conn.commit()
+        logger.info(f"🧹 Cleaned database (older than {days} days): "
+                    f"Deleted {deleted_articles} articles, "
+                    f"{deleted_topics} hot_topics, "
+                    f"{deleted_topic_articles} topic_articles entries.")
+        return deleted_articles, deleted_topics, deleted_topic_articles
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"❌ Failed to clean database: {e}")
+        raise e
+    finally:
+        conn.close()
+
+
 if __name__ == '__main__':
     print(f"Total articles: {count_articles()}")

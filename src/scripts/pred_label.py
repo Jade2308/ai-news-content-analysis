@@ -49,7 +49,7 @@ def get_article_counts():
 
 
 def run_labeling(
-    model_path: str = 'results/models/phobert_clickbait',
+    model_path: str = None,
     model_version: str = 'phobert_v1.0',
     batch_size: int = 32,
     show_samples: bool = False,
@@ -58,6 +58,9 @@ def run_labeling(
     logger.info("=" * 70)
     logger.info("STARTING PREDICTION & LABELING")
     logger.info("=" * 70)
+
+    if model_path is None:
+        model_path = os.path.join(PROJECT_ROOT, 'models', 'phobert_clickbait')
 
     # Init DB
     logger.info("Initializing database...")
@@ -163,7 +166,7 @@ def run_labeling(
 
 def main():
     parser = argparse.ArgumentParser(description='Label articles with model predictions')
-    parser.add_argument('--model-path', default='results/models/phobert_clickbait', 
+    parser.add_argument('--model-path', default=os.path.join(PROJECT_ROOT, 'models', 'phobert_clickbait'), 
                        help='Path to model directory')
     parser.add_argument('--model-version', default='phobert_v1.0',
                        help='Model version name')

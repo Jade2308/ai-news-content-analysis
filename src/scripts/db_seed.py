@@ -30,6 +30,7 @@ from src.database.schema import init_db
 from src.database.db import insert_article
 from src.crawlers.vnexpress_crawler import VNExpressCrawler
 from src.crawlers.tuoitre_crawler import TuoitreCrawler
+from src.crawlers.vietnamnet_crawler import VietnamNetCrawler
 
 logging.basicConfig(
     level=logging.INFO,
@@ -41,6 +42,7 @@ logger = logging.getLogger('seed_db')
 _CRAWLER_MAP = {
     'vnexpress': VNExpressCrawler,
     'tuoitre': TuoitreCrawler,
+    'vietnamnet': VietnamNetCrawler,
 }
 
 def _categories_for_source(source: str, category: str | None) -> list[str]:
@@ -101,7 +103,7 @@ def main():
     )
     parser.add_argument(
         '--source',
-        choices=['vnexpress', 'tuoitre', 'all'],
+        choices=['vnexpress', 'tuoitre', 'vietnamnet', 'all'],
         default='all',
         help='Nguồn cần crawl (mặc định: all)',
     )

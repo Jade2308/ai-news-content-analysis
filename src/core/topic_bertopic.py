@@ -31,7 +31,7 @@ class TopicAnalyzer:
             )
             
             # Clustering model: Quá trình test cho thấy KMeans ép chùm quá to. 
-            # Ta quay lại HDBSCAN và khai báo cực chặt: Chỉ gom nếu có 5-10 bài cực giống nhau
+            # Ta quay lại HDBSCAN và khai báo cực chặt: Chỉ gom nếu có tối thiểu 5 bài cực giống nhau
             from hdbscan import HDBSCAN
             self.hdbscan_model = HDBSCAN(
                 min_cluster_size=5, 

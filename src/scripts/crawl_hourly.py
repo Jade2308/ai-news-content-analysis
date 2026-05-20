@@ -123,7 +123,7 @@ def main():
     if total_all > 0:
         logger.info("\nStarting automatic labeling for new articles...")
         run_labeling(
-            model_path='results/models/phobert_clickbait',
+            model_path=os.path.join(PROJECT_ROOT, 'models', 'phobert_clickbait'),
             model_version='phobert_v1.0',
             batch_size=32,
             show_samples=False,

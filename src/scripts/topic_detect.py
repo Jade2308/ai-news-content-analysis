@@ -21,31 +21,42 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 def generate_topic_name_with_gemma(keywords, titles, api_key):
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemma-3-27b-it:generateContent?key={api_key}"
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={api_key}"
     prompt = (
-        "Bạn là một biên tập viên báo chí. "
-        "Hãy đọc danh sách từ khóa và tiêu đề của một cụm các bài báo dưới đây, và nghĩ ra MỘT CÂU tiêu đề CHỈNH CHU, NGẮN GỌN (tối đa 10 chữ) để đặt tên cho dải chủ đề này (ví dụ: 'Chiến sự Mỹ và Iran' thay vì 'mỹ, iran, chiến tranh').\n\n"
+        "Bạn là một biên tập viên báo chí thực hiện đặt tên chủ đề ngắn gọn.\n"
+        "Hãy đọc danh sách từ khóa và tiêu đề nhóm bài báo dưới đây và đặt ra một câu tiêu đề chỉnh chu, ngắn gọn (tối đa 10 từ) làm tên chủ đề đại diện.\n"
+        "YÊU CẦU BẮT BUỘC: CHỈ ĐƯA RA KẾT QUẢ CUỐI CÙNG (CÂU TIÊU ĐỀ). KHÔNG ĐƯỢC GIẢI THÍCH, KHÔNG PHÂN TÍCH, KHÔNG CHỈ RA CÁC BƯỚC SUY NGHĨ, KHÔNG TRÌNH BÀY CÁC BƯỚC KHỞI TẠO, KHÔNG PHÁT SINH BẤT KỲ VĂN BẢN NÀO KHÁC.\n\n"
         f"Từ khóa: {', '.join(keywords)}\n"
         f"Tiêu đề nhóm bài:\n" + "\n".join([f"- {t}" for t in titles]) + "\n\n"
-        "Tên chủ đề ngắn gọn:"
+        "Tên chủ đề ngắn gọn (Chỉ trả về 1 câu duy nhất):"
     )
     payload = {
         "contents": [{"parts": [{"text": prompt}]}]
     }
     headers = {'Content-Type': 'application/json'}
     try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=30)
+        resp = requests.post(url, json=payload, headers=headers, timeout=60)
         if resp.status_code != 200:
-            logger.warning(f"Gemma API Error [{resp.status_code}]: {resp.text}")
+            logger.warning(f"Gemini API Error [{resp.status_code}]: {resp.text}")
             return None
             
         data = resp.json()
         if 'candidates' in data and len(data['candidates']) > 0:
-            return data['candidates'][0]['content']['parts'][0]['text'].strip().replace('"', '').replace('*', '')
+            parts = data['candidates'][0]['content']['parts']
+            # Lọc bỏ phần suy nghĩ (thought)
+            answer_parts = [p['text'] for p in parts if not p.get('thought')]
+            answer = "".join(answer_parts).strip()
+            
+            # Loại bỏ các tiền tố tự sinh lại nếu có
+            for prefix in ["Tên chủ đề ngắn gọn:", "Tên chủ đề:", "Tiêu đề:"]:
+                if answer.lower().startswith(prefix.lower()):
+                    answer = answer[len(prefix):].strip()
+                    
+            return answer.replace('"', '').replace('*', '')
         else:
-            logger.warning(f"Phản hồi không mong muốn từ Gemma: {data}")
+            logger.warning(f"Phản hồi không mong muốn từ Gemini: {data}")
     except Exception as e:
-        logger.warning(f"Lỗi khi gọi Gemma API: {e}")
+        logger.warning(f"Lỗi khi gọi Gemini API: {e}")
     return None
 
 def main():
@@ -112,10 +123,10 @@ def main():
         titles_for_llm = [text.split('.', 1)[0] for text in rep_docs[:5]] if rep_docs else []
         
         if api_key and rep_docs:
-            logger.info("Đang gọi Google Gemma-3-27B-IT (Mô hình miễn phí KHỦNG nhất)...")
+            logger.info("Đang gọi Gemini API (gemini-2.5-flash-lite)...")
             ai_name = generate_topic_name_with_gemma(ht['keywords'], titles_for_llm, api_key)
             if ai_name:
-                topic_name = ai_name.replace('"', '').replace('*', '').upper()
+                topic_name = ai_name.replace('"', '').replace('*', '').strip()
                 
         # Get actual article_ids forming this cluster
         article_ids = []

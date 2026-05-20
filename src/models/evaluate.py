@@ -277,7 +277,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv-path',
         type=str,
-        default='clickbait_dataset_vietnamese.csv',
+        default='data/clickbait_dataset_vietnamese.csv',
         help='Path to dataset CSV file'
     )
     parser.add_argument(

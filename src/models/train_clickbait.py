@@ -5,6 +5,7 @@ import logging
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 from transformers import (
+    AutoConfig,
     AutoTokenizer, 
     AutoModelForSequenceClassification,
     get_linear_schedule_with_warmup
@@ -18,12 +19,45 @@ from sklearn.metrics import (
 from tqdm import tqdm
 from pathlib import Path
 import json
+from huggingface_hub import hf_hub_download
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+ROOT_DIR = Path(__file__).resolve().parents[2]
+
+
+def load_sequence_classifier(model_name: str, num_labels: int):
+    """Load a Hugging Face sequence classifier without triggering transformers' torch.load guard."""
+    config = AutoConfig.from_pretrained(model_name, num_labels=num_labels)
+    model = AutoModelForSequenceClassification.from_config(config)
+
+    weight_candidates = ["model.safetensors", "pytorch_model.bin"]
+    last_error = None
+
+    for weight_file in weight_candidates:
+        try:
+            weight_path = hf_hub_download(repo_id=model_name, filename=weight_file)
+            if weight_file.endswith(".safetensors"):
+                from safetensors.torch import load_file
+
+                state_dict = load_file(weight_path)
+            else:
+                try:
+                    state_dict = torch.load(weight_path, map_location="cpu", weights_only=True)
+                except TypeError:
+                    state_dict = torch.load(weight_path, map_location="cpu")
+
+            model.load_state_dict(state_dict, strict=False)
+            logger.info(f"   Loaded weights from {weight_file}")
+            return model
+        except Exception as exc:
+            last_error = exc
+
+    raise RuntimeError(f"Could not load model weights for {model_name}") from last_error
 
 
 class ClickbaitDataset(Dataset):
@@ -88,8 +122,16 @@ def train_phobert(
     model_name = "vinai/phobert-base"
     
     # Load dataset
-    logger.info(f"📂 Loading dataset from {csv_path}")
-    df = pd.read_csv(csv_path)
+    csv_file = Path(csv_path)
+    if not csv_file.is_absolute():
+        candidates = [
+            ROOT_DIR / csv_file,
+            ROOT_DIR / 'data' / csv_file.name,
+        ]
+        csv_file = next((candidate for candidate in candidates if candidate.exists()), csv_file)
+
+    logger.info(f"📂 Loading dataset from {csv_file}")
+    df = pd.read_csv(csv_file)
     logger.info(f"   Total samples: {len(df)}")
     
     texts = df['title'].tolist()
@@ -111,10 +153,7 @@ def train_phobert(
     # Load model and tokenizer
     logger.info(f"🤖 Loading model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_name, 
-        num_labels=2
-    )
+    model = load_sequence_classifier(model_name, num_labels=2)
     model.to(device)
     
     # Create datasets
@@ -269,7 +308,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv-path',
         type=str,
-        default='clickbait_dataset_vietnamese.csv',
+        default=str(ROOT_DIR / 'data' / 'clickbait_dataset_vietnamese.csv'),
         help='Path to dataset CSV file'
     )
     parser.add_argument(

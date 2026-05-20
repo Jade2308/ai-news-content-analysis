@@ -19,6 +19,12 @@ import subprocess
 import sys
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout.reconfigure(encoding='utf-8')
+
+load_dotenv()
 
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
@@ -192,6 +198,10 @@ def query_db():
     run_python_script("query_articles.py")
 
 
+def clean_db(days: int):
+    run_python_script("db_clean.py", ["--days", str(days)])
+
+
 def interactive_menu():
     while True:
         try:
@@ -204,6 +214,7 @@ def interactive_menu():
             print_option(2, "Initialize / reset database", WHITE)
             print_option(3, "Check database status", WHITE)
             print_option(4, "Query database statistics", WHITE)
+            print_option(12, "Clean old database data", WHITE)
 
             print_section("Crawling", GREEN)
             print_option(5, "Crawl all newspapers (full)", WHITE)
@@ -241,12 +252,20 @@ def interactive_menu():
             check_db()
         elif choice == "4":
             query_db()
+        elif choice == "12":
+            days_raw = input("Days window to keep (default 14): ").strip() or "14"
+            try:
+                days = int(days_raw)
+            except ValueError:
+                print(style("Invalid number, using 14", YELLOW))
+                days = 14
+            clean_db(days=days)
         elif choice == "5":
             crawl_all()
         elif choice == "6":
             crawl_hourly()
         elif choice == "7":
-            source = input("Source [vnexpress|tuoitre|all] (default all): ").strip() or "all"
+            source = input("Source [vnexpress|tuoitre|vietnamnet|all] (default all): ").strip() or "all"
             category = input("Category (optional): ").strip() or None
             limit_raw = input("Limit per source/category (default 50): ").strip() or "50"
             db_path = input("Custom DB path (optional): ").strip() or None
@@ -313,7 +332,7 @@ def run_single_automation():
     print("\nSingle-run automation: crawl -> label -> topics")
     crawl_type = input("Crawl type [full|selective] (default full): ").strip() or "full"
     if crawl_type == "selective":
-        source = input("Source [vnexpress|tuoitre|all] (default all): ").strip() or "all"
+        source = input("Source [vnexpress|tuoitre|vietnamnet|all] (default all): ").strip() or "all"
         category = input("Category (optional): ").strip() or None
         limit_raw = input("Limit per source/category (default 50): ").strip() or "50"
         try:
@@ -365,7 +384,7 @@ def main():
     sub.add_parser("crawl-hourly", help="Incremental hourly crawl for new articles")
 
     seed_parser = sub.add_parser("seed", help="Selective crawl by source/category")
-    seed_parser.add_argument("--source", choices=["vnexpress", "tuoitre", "all"], default="all")
+    seed_parser.add_argument("--source", choices=["vnexpress", "tuoitre", "vietnamnet", "all"], default="all")
     seed_parser.add_argument("--category", default=None)
     seed_parser.add_argument("--limit", type=int, default=50)
     seed_parser.add_argument("--db-path", default=None)
@@ -384,6 +403,8 @@ def main():
     sub.add_parser("scheduler", help="Run APScheduler daemon (hourly tasks)")
     sub.add_parser("db-check", help="Check database health and summary")
     sub.add_parser("db-query", help="Query and print database statistics")
+    clean_parser = sub.add_parser("db-clean", help="Clean old data from database")
+    clean_parser.add_argument("--days", type=int, default=14, help="Keep data from the last N days")
 
     try:
         args = parser.parse_args()
@@ -417,6 +438,8 @@ def main():
             check_db()
         elif args.cmd == "db-query":
             query_db()
+        elif args.cmd == "db-clean":
+            clean_db(days=args.days)
         else:
             parser.print_help()
     except KeyboardInterrupt:
