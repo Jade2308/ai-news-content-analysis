@@ -1,24 +1,40 @@
 import os
+import sys
+
 import requests
 from dotenv import load_dotenv
 
-load_dotenv()
-api_key = os.environ.get("GEMINI_API_KEY")
 
-if not api_key:
-    print("Không tìm thấy GEMINI_API_KEY trong file .env")
-    exit(1)
+def _safe_print(text: str) -> None:
+    """Print text without crashing on legacy terminal encodings."""
+    encoding = sys.stdout.encoding or "utf-8"
+    sys.stdout.buffer.write((text + "\n").encode(encoding, errors="replace"))
 
-url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
-resp = requests.get(url)
 
-if resp.status_code == 200:
-    models = resp.json().get('models', [])
-    print("\n=== DANH SÁCH MÃ MODEL GOOGLE HỖ TRỢ CHO API KEY NÀY ===")
-    for m in models:
-        name = m.get('name')
-        if 'generateContent' in m.get('supportedGenerationMethods', []):
-            print(f"- {name}")
-    print("========================================================\n")
-else:
-    print(f"Lỗi: {resp.status_code} - {resp.text}")
+def main() -> int:
+    load_dotenv()
+    api_key = os.environ.get("GEMINI_API_KEY")
+    if not api_key:
+        _safe_print("GEMINI_API_KEY not found in .env file.")
+        return 1
+
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    resp = requests.get(url, timeout=30)
+
+    if resp.status_code == 200:
+        models = resp.json().get("models", [])
+        _safe_print("=== GOOGLE MODELS WITH generateContent SUPPORT ===")
+        for model in models:
+            name = model.get("name")
+            methods = model.get("supportedGenerationMethods", [])
+            if "generateContent" in methods:
+                _safe_print(f"- {name}")
+        _safe_print("=================================================")
+        return 0
+
+    _safe_print(f"Error: {resp.status_code} - {resp.text}")
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
