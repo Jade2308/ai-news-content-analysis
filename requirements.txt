@@ -17,4 +17,3 @@ gensim
 underthesea
 bertopic
 accelerate
-google-generativeai

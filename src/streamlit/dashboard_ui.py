@@ -45,8 +45,13 @@ html, body, .stApp {
 }
 
 .block-container {
-	padding-top: 1rem !important;
+	padding-top: 3rem !important;
 	padding-bottom: 2rem !important;
+}
+
+[data-testid="stHeader"] {
+	background: transparent !important;
+	height: 0 !important;
 }
 
 a {

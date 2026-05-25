@@ -45,7 +45,7 @@ def clear_query_params():
 # Page config
 st.set_page_config(
 	page_title="AI News Analysis - Dashboard",
-	page_icon="📰",
+	page_icon=":newspaper:",
 	layout="wide",
 	initial_sidebar_state="expanded"
 )
@@ -532,17 +532,25 @@ def main():
 		st.session_state.navigation_page = "📊 Tổng Quan"
 	if "last_page" not in st.session_state:
 		st.session_state.last_page = "📊 Tổng Quan"
+	if "from_query_param" not in st.session_state:
+		st.session_state.from_query_param = False
 
 	# Check query parameters for article_id or topic_id to handle clickable HTML cards
 	qp_article_id = get_query_param("article_id")
 	if qp_article_id:
 		st.session_state.selected_article_id = qp_article_id
+		st.session_state.from_query_param = True
 
 	qp_topic_id = get_query_param("topic_id")
 	if qp_topic_id:
-		st.session_state.selected_topic_id = int(qp_topic_id)
-		st.session_state.current_view = "topic_detail"
-		st.session_state.navigation_page = "🔥 Chủ Đề Nóng"
+		try:
+			topic_id_int = int(qp_topic_id)
+			st.session_state.selected_topic_id = topic_id_int
+			st.session_state.current_view = "topic_detail"
+			st.session_state.navigation_page = "🔥 Chủ Đề Nóng"
+			st.session_state.from_query_param = True
+		except (ValueError, TypeError):
+			pass
 
 	# Render Topbar Navigation
 	col_logo, col_nav = st.columns([1, 2.2])
@@ -566,16 +574,11 @@ def main():
 		)
 	st.markdown("<hr style='border: 0; border-top: 1px solid var(--panel-border); margin: 0 0 25px 0;'>", unsafe_allow_html=True)
 	
-	# Reset states on page change
-	if st.session_state.last_page != selected_page:
-		st.session_state.selected_article_id = None
-		st.session_state.selected_topic_id = None
-		st.session_state.current_view = "home"
-		st.session_state.last_page = selected_page
-		clear_query_params()
-		st.rerun()
-
-	# Route Detail views first
+	# Clear the query param flag after one render
+	if st.session_state.from_query_param:
+		st.session_state.from_query_param = False
+	
+	# Route Detail views first (takes priority while viewing detail)
 	if st.session_state.selected_article_id:
 		render_article_detail(st.session_state.selected_article_id)
 		return
@@ -583,6 +586,16 @@ def main():
 	if st.session_state.current_view == "topic_detail" and st.session_state.selected_topic_id is not None:
 		render_topic_detail(st.session_state.selected_topic_id)
 		return
+	
+	# Check if user changed pages - allows exiting detail view
+	if st.session_state.last_page != selected_page:
+		st.session_state.selected_article_id = None
+		st.session_state.selected_topic_id = None
+		st.session_state.current_view = "home"
+		clear_query_params()
+	
+	# Update last_page for next render
+	st.session_state.last_page = selected_page
 
 	# PAGE 1: TỔNG QUAN
 	if selected_page == "📊 Tổng Quan":
