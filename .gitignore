@@ -1,174 +1,41 @@
-# ============================================================================
-# Python & Virtual Environment
-# ============================================================================
+# Python cache
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# Virtual Environments
+# Virtual environments
 .venv/
 venv/
-ENV/
 env/
-env.bak/
-venv.bak/
 
-# ============================================================================
-# Environment & Configuration
-# ============================================================================
+# Local environment config
 .env
 .env.local
 .env.*.local
-.streamlit/
 
-# ============================================================================
-# IDEs & Editors
-# ============================================================================
+# Editors / OS
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
 Thumbs.db
 
-# ============================================================================
-# Databases (Local Only)
-# ============================================================================
+# Local databases
 *.db
 *.sqlite
 *.sqlite3
 
-# ============================================================================
-# Machine Learning Models (Large Files)
-# ============================================================================
+# Logs and temp files
+*.log
+logs/
+tmp/
+temp/
+
+# Generated ML artifacts
 results/models/
 results/checkpoints/
-.cache/
-.huggingface/
+results/evaluation/
 
-# ============================================================================
-# Logs & Temporary Files
-# ============================================================================
-*.log
-logs/
-*.tmp
-*.bak
-*.backup
-*.swo
-*~
-.spyderproject
-.spyproject
-.ropeproject
-*.sublime-project
-*.sublime-workspace
-
-# ============================================================================
-# Operating System
-# ============================================================================
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# ============================================================================
-# Testing & Coverage
-# ============================================================================
-.cache/
+# Test and coverage outputs
+.pytest_cache/
 .coverage
 .coverage.*
-.hypothesis/
-.pytest_cache/
 htmlcov/
-nosetests.xml
-coverage.xml
-*.cover
-*.pye
-test-results.xml
-
-# ============================================================================
-# Project Specific
-# ============================================================================
-
-# Database (local instances - each developer has their own)
-*.db
-*.sqlite
-*.sqlite3
-
-# Logs
-*.log
-logs/
-streamlit.out.log
-streamlit.err.log
-
-# Notes & temporary files
-note.txt
-notes/
-TODO.md
-temp/
-tmp/
-
-# News Data (generated)
-data/discovered_categories.json
-
-# ============================================================================
-# ML Models & Artifacts (Large Files)
-# ============================================================================
-# Pre-trained models directory
-models/phobert_clickbait/
-models/**/checkpoint*/
-models/**/runs/
-models/**/*.safetensors
-models/**/*.ckpt
-
-# Model weights & checkpoints
-*.safetensors
-*.ckpt
-*.pt
-*.pth
-*.bin
-*.joblib
-*.pkl
-*.pickle
-
-# Training artifacts (generated)
-training_history/
-results/evaluation_results/
-results/models/
-outputs/
-
-# ============================================================================
-# Data
-# ============================================================================
-# Generated/local artifacts
-data/news.db
-raw_data/
-
-# ============================================================================
-# Documentation (keep docs/ in repo)
-# ============================================================================
-# Exclude API docs auto-generated files (but keep source docs)
-docs/_build/
-docs/.doctrees/
-
-# ============================================================================
-# OS temp & backup files
-# ============================================================================
-*.bak
-*.tmp
-*.orig
-*.backup

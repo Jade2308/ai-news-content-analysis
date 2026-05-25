@@ -32,7 +32,7 @@ def _get_clickbait_model():
     model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'phobert_clickbait')
     if not os.path.isdir(model_dir):
         _CLICKBAIT_MODEL_DISABLED = True
-        logger.info("PhoBERT model not found at models/phobert_clickbait. Skip clickbait detection.")
+        logger.info("PhoBERT model not found at results/models/phobert_clickbait. Skip clickbait detection.")
         return None
 
     try:

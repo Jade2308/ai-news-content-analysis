@@ -1,20 +1,18 @@
 requests
 beautifulsoup4
 lxml
-APScheduler
-SQLAlchemy
 pandas
-plotly
 streamlit
 python-dotenv
---extra-index-url https://download.pytorch.org/whl/cu121
 torch
 transformers
 scikit-learn
 numpy
 tqdm
-gensim
-underthesea
 bertopic
+sentence-transformers
+umap-learn
+hdbscan
+matplotlib
+huggingface-hub
 accelerate
-google-generativeai

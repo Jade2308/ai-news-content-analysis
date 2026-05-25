@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # Cache the model to avoid reloading
 _CLICKBAIT_MODEL = None
-_MODEL_PATH = 'models/phobert_clickbait'
+_MODEL_PATH = 'results/models/phobert_clickbait'
 
 
 def get_clickbait_model():

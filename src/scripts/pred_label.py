@@ -84,7 +84,7 @@ def run_labeling(
 
         if total_articles == 0:
             logger.warning("⚠️ Database is empty: chưa có bài viết nào được crawl vào bảng articles.")
-            logger.warning("   Hãy chạy: python src/scripts/crawl_all.py")
+            logger.warning("   Hãy chạy: python src/scripts/crawl.py --mode full")
         else:
             logger.info("✅ All articles already predicted!")
             logger.info(f"   Total articles: {total_articles}")

@@ -84,17 +84,6 @@ def run_python_script(script_name: str, args: list[str] | None = None):
     subprocess.run(cmd, cwd=ROOT)
 
 
-def run_python_file(relative_path: str, args: list[str] | None = None):
-    """Run a Python file relative to the project root."""
-    script_path = os.path.join(ROOT, relative_path)
-    cmd = [sys.executable, script_path]
-    if args:
-        cmd.extend(args)
-
-    print("Running:\n  " + " ".join(cmd))
-    subprocess.run(cmd, cwd=ROOT)
-
-
 def resolve_model_path(preferred: str | None = None) -> str:
     """Resolve model directory with sane defaults for this repository."""
     candidates: list[str] = []
@@ -102,7 +91,6 @@ def resolve_model_path(preferred: str | None = None) -> str:
         candidates.append(preferred)
     candidates.extend([
         os.path.join("results", "models", "phobert_clickbait"),
-        os.path.join("models", "phobert_clickbait"),
     ])
 
     for relative in candidates:
@@ -141,11 +129,11 @@ def init_db(db_path: str | None = None):
 
 
 def crawl_all():
-    run_python_script("crawl_all.py")
+    run_python_script("crawl.py", ["--mode", "full"])
 
 
 def crawl_hourly():
-    run_python_script("crawl_hourly.py")
+    run_python_script("crawl.py", ["--mode", "hourly"])
 
 
 def seed_data(source: str, category: str | None, limit: int, db_path: str | None):
@@ -183,19 +171,19 @@ def detect_topics(hours: int, top_n: int):
 def detect_topics_all_timeframes():
     if not os.getenv("GEMINI_API_KEY"):
         print("Info: GEMINI_API_KEY is not set. Topic naming will use keyword fallback.")
-    run_python_script("topic_run_timeframes.py")
+    run_python_script("topic_detect.py", ["--all-timeframes"])
 
 
 def run_scheduler_daemon():
-    run_python_script("sched_config.py")
+    run_python_script("sched_run.py")
 
 
 def check_db():
-    run_python_file(os.path.join("src", "tests", "db_status.py"))
+    run_python_script("db_tools.py", ["check"])
 
 
 def query_db():
-    run_python_script("query_articles.py")
+    run_python_script("db_tools.py", ["stats"])
 
 
 def clean_db(days: int):
@@ -400,7 +388,7 @@ def main():
     topics_parser.add_argument("--top-n", type=int, default=10)
 
     sub.add_parser("topics-all", help="Detect hot topics for 1h/6h/12h/24h/168h")
-    sub.add_parser("scheduler", help="Run APScheduler daemon (hourly tasks)")
+    sub.add_parser("scheduler", help="Run hourly scheduler daemon")
     sub.add_parser("db-check", help="Check database health and summary")
     sub.add_parser("db-query", help="Query and print database statistics")
     clean_parser = sub.add_parser("db-clean", help="Clean old data from database")
