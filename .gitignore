@@ -29,11 +29,6 @@ logs/
 tmp/
 temp/
 
-# Generated ML artifacts
-results/models/
-results/checkpoints/
-results/evaluation/
-
 # Test and coverage outputs
 .pytest_cache/
 .coverage
