@@ -102,7 +102,7 @@ def resolve_model_path(preferred: str | None = None) -> str:
 
 def run_streamlit(port: int = 8501):
     """Run the Streamlit dashboard using the current Python interpreter."""
-    dashboard_path = os.path.join(ROOT, "src", "streamlit", "dashboard.py")
+    dashboard_path = os.path.join(ROOT, "src", "streamlit", "streamlit.py")
     cmd = [sys.executable, "-m", "streamlit", "run", dashboard_path, "--server.address", "127.0.0.1", "--server.port", str(port)]
     print("Starting Streamlit:\n  " + " ".join(cmd))
     print("Press Ctrl+C to stop the server cleanly.")
@@ -194,29 +194,34 @@ def interactive_menu():
     while True:
         try:
             print_header("AI News Content Analysis")
-            print(style("  Use the numbered options below or press Ctrl+C to exit.", DIM))
-            print_option(0, "Exit", RED, icon=ACTION_ICON)
-            print_option(1, "Automation menu", MAGENTA, icon=ACTION_ICON)
+            print(style("  Choose an action. Press Ctrl+C to exit safely.", DIM))
+
+            print_section("Core", CYAN)
+            print_option(1, "Run Streamlit dashboard (localhost:8501)", WHITE, icon=ACTION_ICON)
+            print_option(2, "Single-run pipeline (crawl -> label -> topics)", MAGENTA, icon=ACTION_ICON)
+            print_option(3, "Run scheduler daemon", MAGENTA, icon=ACTION_ICON)
+            print(style("  * Hint: press Ctrl+C in this terminal to stop Streamlit.", DIM))
 
             print_section("Database", BLUE)
-            print_option(2, "Initialize / reset database", WHITE)
-            print_option(3, "Check database status", WHITE)
-            print_option(4, "Query database statistics", WHITE)
-            print_option(12, "Clean old database data", WHITE)
+            print_option(4, "Initialize / reset database", WHITE)
+            print_option(5, "Check database status", WHITE)
+            print_option(6, "Query database statistics", WHITE)
+            print_option(7, "Clean old database data", WHITE)
 
             print_section("Crawling", GREEN)
-            print_option(5, "Crawl all newspapers (full)", WHITE)
-            print_option(6, "Crawl hourly (incremental)", WHITE)
-            print_option(7, "Selective crawl (source/category)", WHITE)
+            print_option(8, "Crawl all newspapers (full)", WHITE)
+            print_option(9, "Crawl hourly (incremental)", WHITE)
+            print_option(10, "Selective crawl (source/category)", WHITE)
 
-            print_section("Prediction", YELLOW)
-            print_option(8, "Label unpredicted articles", WHITE)
-            print_option(9, "Detect hot topics (single timeframe)", WHITE)
-            print_option(10, "Detect hot topics (all timeframes)", WHITE)
+            print_section("AI Analysis", YELLOW)
+            print_option(11, "Label unpredicted articles", WHITE)
+            print_option(12, "Detect hot topics (single timeframe)", WHITE)
+            print_option(13, "Detect hot topics (all timeframes)", WHITE)
 
-            print_section("UI", CYAN)
-            print_option(11, "Run Streamlit dashboard (localhost:8501)", WHITE)
-            print(style("  ▸ Hint: press Ctrl+C in this terminal to stop Streamlit when running", DIM))
+            print_section("More", MAGENTA)
+            print_option(14, "Automation submenu (legacy)", WHITE)
+            print_option(0, "Exit", RED, icon=ACTION_ICON)
+
             choice = input("Choose an option: ").strip()
         except KeyboardInterrupt:
             print()
@@ -231,16 +236,26 @@ def interactive_menu():
             print(style("Bye", GREEN, bold=True))
             return
         if choice == "1":
-            automation_menu()
+            port_raw = input("Dashboard port (default 8501): ").strip() or "8501"
+            try:
+                port = int(port_raw)
+            except ValueError:
+                print(style("Invalid port, using 8501", YELLOW))
+                port = 8501
+            run_streamlit(port=port)
         elif choice == "2":
+            run_single_automation()
+        elif choice == "3":
+            run_scheduler_daemon()
+        elif choice == "4":
             confirm = input("This will ensure DB schema exists. Continue? [y/N]: ")
             if confirm.lower().startswith("y"):
                 init_db()
-        elif choice == "3":
+        elif choice == "5":
             check_db()
-        elif choice == "4":
+        elif choice == "6":
             query_db()
-        elif choice == "12":
+        elif choice == "7":
             days_raw = input("Days window to keep (default 14): ").strip() or "14"
             try:
                 days = int(days_raw)
@@ -248,11 +263,11 @@ def interactive_menu():
                 print(style("Invalid number, using 14", YELLOW))
                 days = 14
             clean_db(days=days)
-        elif choice == "5":
+        elif choice == "8":
             crawl_all()
-        elif choice == "6":
+        elif choice == "9":
             crawl_hourly()
-        elif choice == "7":
+        elif choice == "10":
             source = input("Source [vnexpress|tuoitre|vietnamnet|all] (default all): ").strip() or "all"
             category = input("Category (optional): ").strip() or None
             limit_raw = input("Limit per source/category (default 50): ").strip() or "50"
@@ -263,7 +278,7 @@ def interactive_menu():
                 print(style("Invalid limit, using 50", YELLOW))
                 limit = 50
             seed_data(source=source, category=category, limit=limit, db_path=db_path)
-        elif choice == "8":
+        elif choice == "11":
             model_path = input("Model path (optional): ").strip() or None
             model_version = input("Model version (default phobert_v1.0): ").strip() or "phobert_v1.0"
             batch_raw = input("Batch size (default 32): ").strip() or "32"
@@ -274,7 +289,7 @@ def interactive_menu():
                 print(style("Invalid batch size, using 32", YELLOW))
                 batch_size = 32
             label_articles(model_path, model_version, batch_size, show_samples)
-        elif choice == "9":
+        elif choice == "12":
             hours_raw = input("Hours window (default 24): ").strip() or "24"
             top_n_raw = input("Top topics (default 10): ").strip() or "10"
             try:
@@ -284,14 +299,10 @@ def interactive_menu():
                 print(style("Invalid numbers, using hours=24, top_n=10", YELLOW))
                 hours, top_n = 24, 10
             detect_topics(hours=hours, top_n=top_n)
-        elif choice == "11":
-            port_raw = input("Dashboard port (default 8501): ").strip() or "8501"
-            try:
-                port = int(port_raw)
-            except ValueError:
-                print(style("Invalid port, using 8501", YELLOW))
-                port = 8501
-            run_streamlit(port=port)
+        elif choice == "13":
+            detect_topics_all_timeframes()
+        elif choice == "14":
+            automation_menu()
         else:
             print(style("Unknown choice", RED, bold=True))
 
@@ -440,3 +451,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

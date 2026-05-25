@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config import DB_PATH
 from src.database.schema import init_db
-from src.streamlit.dashboard_ui import (
+from src.streamlit.theme import (
 	premium_dashboard_styles,
 	render_article_card_html,
 	render_dashboard_hero,
@@ -425,7 +425,7 @@ def render_article_detail(article_id):
 				<div class="article-detail-meta"><b>{source}</b> · {category} · {published_at or crawled_at}</div>
 				<h2 style="margin: 0 0 15px 0; font-size: clamp(24px, 2.5vw, 36px); line-height: 1.25; color: var(--text); font-weight: 800;">{title}</h2>
 				<div style="margin-bottom: 15px;">{badge_html}</div>
-				<div style="background: #f1f5f9; padding: 15px; border-radius: var(--radius-md); border-left: 4px solid var(--accent); margin-bottom: 20px;">
+				<div style="background: rgba(57, 166, 255, 0.10); padding: 15px; border-radius: var(--radius-md); border-left: 4px solid var(--accent); margin-bottom: 20px; border: 1px solid var(--panel-border);">
 					<h4 style="margin: 0 0 5px 0; font-size: 14px; text-transform: uppercase; color: var(--muted-strong); font-weight: 700;">Tóm tắt nhanh (AI)</h4>
 					<p style="font-size: 14px; line-height: 1.6; color: var(--text); margin: 0;">{summary}</p>
 				</div>
@@ -486,7 +486,7 @@ def render_topic_detail(topic_id: int):
 		st.markdown(
 			f"""
 			<a href="?article_id={article_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
-				<div class="detail-card" style="margin-bottom: 12px; background: white; border: 1px solid var(--panel-border); padding: 15px; border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
+				<div class="detail-card" style="margin-bottom: 12px; background: var(--panel); border: 1px solid var(--panel-border); padding: 15px; border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 					<div class="detail-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">{source} · {published_at}</div>
 					<div class="topic-card-title" style="font-size: 16px; font-weight: 700; margin-top: 5px; color: var(--text);">{title}</div>
 					<div class="topic-card-summary" style="font-size: 13.5px; color: var(--muted-strong); margin-top: 8px; line-height: 1.5;">{summary}</div>
@@ -661,7 +661,7 @@ def main():
 					st.markdown(
 						f"""
 						<a href="?topic_id={topic_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
-							<div class="topic-card" style="margin-bottom: 12px; background: white; padding: 15px; border: 1px solid var(--panel-border); border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
+							<div class="topic-card" style="margin-bottom: 12px; background: var(--panel); padding: 15px; border: 1px solid var(--panel-border); border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 								<div class="topic-card-title" style="font-size: 15px; font-weight: 700; color: var(--accent);">{topic_name}</div>
 								<div class="topic-card-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 5px; text-transform: uppercase;">🔥 {article_count} bài viết</div>
 								<div style="font-size: 12.5px; color: var(--muted-strong); margin-top: 6px; line-height: 1.4;"><b>Từ khóa:</b> {keywords}</div>
@@ -789,13 +789,13 @@ def main():
 				st.markdown(
 					f"""
 					<a href="?topic_id={topic_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
-						<div class="topic-card" style="margin-bottom: 15px; padding: 20px; background: white; border: 1px solid var(--panel-border); border-radius: var(--radius-lg); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
+						<div class="topic-card" style="margin-bottom: 15px; padding: 20px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius-lg); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 							<div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px;">
 								<div class="topic-card-title" style="font-size: 18px; color: var(--accent); font-weight: 800;">{title}</div>
 								<span class="featured-badge badge-safe" style="font-size: 12px; font-weight: 700; background: rgba(79,70,229,0.08); color: var(--accent); border: 1px solid rgba(79,70,229,0.2);">🔥 {article_count} bài viết</span>
 							</div>
 							<div class="topic-card-summary" style="margin-top: 10px; font-size: 14px; color: var(--text);">
-								<strong>Từ khóa chính:</strong> <span style="background: #f1f5f9; padding: 2px 8px; border-radius: 4px; font-weight: 600; color: var(--muted-strong);">{keywords}</span>
+								<strong>Từ khóa chính:</strong> <span style="background: rgba(57, 166, 255, 0.10); padding: 2px 8px; border-radius: 4px; font-weight: 600; color: var(--muted-strong); border: 1px solid var(--panel-border);">{keywords}</span>
 							</div>
 							<div class="topic-card-meta" style="margin-top: 12px; font-size: 11px; color: var(--muted);">
 								<span>Ghi nhận lúc: {created_at}</span>
