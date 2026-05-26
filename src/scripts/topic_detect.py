@@ -116,6 +116,10 @@ def run_topic_detection(hours: int = 24, top_n: int = 10) -> bool:
     api_key = os.environ.get("GEMINI_API_KEY")
     if api_key:
         logger.info("GEMINI_API_KEY found. Generating topic names with Gemini.")
+    else:
+        logger.info(
+            "GEMINI_API_KEY not found. Using local keyword-based topic names (no external API)."
+        )
 
     topics_to_save = []
     for i, ht in enumerate(hot_topics, 1):

@@ -339,47 +339,47 @@ def render_dashboard_hero(date_label: str, mode_label: str, total_articles: int,
 	return f"""
 	<div class="dashboard-hero">
 		<div class="dashboard-brand">
-			<div class="dashboard-kicker">Hệ Thống Phân Tích Tin Tức AI · Live Dashboard</div>
+			<div class="dashboard-kicker">AI News Analysis System · Live Dashboard</div>
 			<h1 class="dashboard-title">VnNew<span style="color: var(--accent);">AI</span></h1>
-			<p class="dashboard-subtitle">Giao diện tòa soạn thông minh giúp phân loại Clickbait, theo dõi cụm chủ đề nóng và phân tích nội dung báo chí Việt Nam.</p>
+			<p class="dashboard-subtitle">Smart newsroom interface for clickbait detection, hot-topic monitoring, and Vietnamese news analysis.</p>
 		</div>
 		<div class="dashboard-hero-grid">
 			<div class="hero-panel">
-				<div class="hero-panel-title">Phiên Làm Việc Hiện Tại</div>
-				<p class="hero-panel-copy">Chế độ xem "{html.escape(mode_label)}" đang hoạt động với giao diện tinh gọn, tập trung hiển thị trực quan thông tin.</p>
+				<div class="hero-panel-title">Current Session</div>
+				<p class="hero-panel-copy">Mode "{html.escape(mode_label)}" is active with a clean layout focused on clear information display.</p>
 				<div class="hero-panel-grid">
 					<div class="micro-card">
-						<div class="micro-card-label">Hôm nay</div>
+						<div class="micro-card-label">Today</div>
 						<div class="micro-card-value">{html.escape(date_label)}</div>
-						<div class="micro-card-note">Dữ liệu được cập nhật trong phiên hiện hành.</div>
+						<div class="micro-card-note">Data is refreshed in the current session.</div>
 					</div>
 					<div class="micro-card">
-						<div class="micro-card-label">Phạm vi dữ liệu</div>
-						<div class="micro-card-value">Thời gian thực</div>
-						<div class="micro-card-note">Kết nối trực tiếp với cơ sở dữ liệu bài viết mới nhất.</div>
+						<div class="micro-card-label">Data scope</div>
+						<div class="micro-card-value">Real-time</div>
+						<div class="micro-card-note">Directly connected to the latest article database.</div>
 					</div>
 					<div class="micro-card">
-						<div class="micro-card-label">Chủ đề nóng</div>
-						<div class="micro-card-value">Phát hiện tự động</div>
-						<div class="micro-card-note">Cập nhật nhanh các cụm tin tức đang được quan tâm.</div>
+						<div class="micro-card-label">Hot topics</div>
+						<div class="micro-card-value">Auto-detected</div>
+						<div class="micro-card-note">Rapid updates for active and emerging news clusters.</div>
 					</div>
 					<div class="micro-card">
-						<div class="micro-card-label">Trải nghiệm</div>
-						<div class="micro-card-value">Giao diện Sáng</div>
-						<div class="micro-card-note">Tối ưu độ tương phản, sạch sẽ và hiện đại.</div>
+						<div class="micro-card-label">Experience</div>
+						<div class="micro-card-value">Premium UI</div>
+						<div class="micro-card-note">Clean, high-contrast, modern visual design.</div>
 					</div>
 				</div>
 			</div>
 			<div class="hero-panel">
-				<div class="hero-panel-title">Chế độ đọc tin</div>
-				<p class="hero-panel-copy">Sử dụng thanh bộ lọc và bảng điều khiển bên dưới để lọc tin tức hoặc chủ đề nóng mà không lo mất ngữ cảnh.</p>
+				<div class="hero-panel-title">Reading mode</div>
+				<p class="hero-panel-copy">Use the filters and dashboard controls below to explore articles and hot topics without losing context.</p>
 				<div class="panel-stack" style="margin-top: 18px;">
 					<div class="micro-card">
-						<div class="micro-card-label">Chế độ hiện tại</div>
+						<div class="micro-card-label">Current mode</div>
 						<div class="micro-card-value">{html.escape(mode_label)}</div>
 					</div>
 					<div class="micro-card">
-						<div class="micro-card-label">Giao diện chính</div>
+						<div class="micro-card-label">Primary theme</div>
 						<div class="micro-card-value">Newsroom Dark</div>
 					</div>
 				</div>

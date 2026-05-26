@@ -84,20 +84,33 @@ def run_python_script(script_name: str, args: list[str] | None = None):
     subprocess.run(cmd, cwd=ROOT)
 
 
-def resolve_model_path(preferred: str | None = None) -> str:
-    """Resolve model directory with sane defaults for this repository."""
+def _is_trained_model_dir(path: Path) -> bool:
+    """Return True if *path* looks like a trained HuggingFace model directory."""
+    if not path.exists() or not path.is_dir():
+        return False
+    if not (path / "config.json").exists():
+        return False
+    weight_files = ["model.safetensors", "pytorch_model.bin", "tf_model.h5"]
+    return any((path / name).exists() for name in weight_files)
+
+
+def resolve_model_path(preferred: str | None = None) -> str | None:
+    """Resolve a usable trained model directory with sane defaults."""
     candidates: list[str] = []
     if preferred:
         candidates.append(preferred)
     candidates.extend([
         os.path.join("results", "models", "phobert_clickbait"),
+        os.path.join("results", "models", "visobert_clickbait"),
+        os.path.join("results", "models", "xlm_roberta_clickbait"),
+        os.path.join("models", "phobert_clickbait"),
     ])
 
     for relative in candidates:
-        if Path(ROOT, relative).exists():
+        if _is_trained_model_dir(Path(ROOT, relative)):
             return relative
 
-    return candidates[0]
+    return None
 
 
 def run_streamlit(port: int = 8501):
@@ -147,10 +160,13 @@ def seed_data(source: str, category: str | None, limit: int, db_path: str | None
 
 def label_articles(model_path: str | None, model_version: str, batch_size: int, show_samples: bool):
     resolved_model_path = resolve_model_path(model_path)
-    if not Path(ROOT, resolved_model_path).exists():
-        print("Warning: model directory not found. Labeling may fail.")
-        print(f"Tried: {resolved_model_path}")
-        print("Train first with: python src/models/train_clickbait.py")
+    if not resolved_model_path:
+        print("ERROR: no trained clickbait model found.")
+        print("Expected a model folder containing config + weights, e.g.:")
+        print("  - results/models/phobert_clickbait/model.safetensors")
+        print("Train first with:")
+        print('  python src/models/train_clickbait.py --output-dir "results/models/phobert_clickbait"')
+        return
 
     args = [
         "--model-path", resolved_model_path,
@@ -279,7 +295,8 @@ def interactive_menu():
                 limit = 50
             seed_data(source=source, category=category, limit=limit, db_path=db_path)
         elif choice == "11":
-            model_path = input("Model path (optional): ").strip() or None
+            model_path = None
+            print("Using auto-detected model path (no manual path input required).")
             model_version = input("Model version (default phobert_v1.0): ").strip() or "phobert_v1.0"
             batch_raw = input("Batch size (default 32): ").strip() or "32"
             show_samples = input("Show sample predictions? [y/N]: ").strip().lower().startswith("y")
@@ -345,7 +362,8 @@ def run_single_automation():
 
     # Labeling
     print("\nNext: labeling step")
-    model_path = input("Model path (optional): ").strip() or None
+    model_path = None
+    print("Using auto-detected model path (no manual path input required).")
     model_version = input("Model version (default phobert_v1.0): ").strip() or "phobert_v1.0"
     batch_raw = input("Batch size (default 32): ").strip() or "32"
     show_samples = input("Show sample predictions? [y/N]: ").strip().lower().startswith("y")

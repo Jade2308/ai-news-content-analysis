@@ -1,17 +1,15 @@
 """
 AI News Dashboard
-Giao diện phân tích và đọc tin tức bằng AI - Phiên bản giao diện Sáng (Premium Light Mode)
+English Streamlit interface for AI-powered news analysis.
 """
 
 from __future__ import annotations
 
 import html
-import re
 import sqlite3
 import sys
 from pathlib import Path
 from typing import Sequence
-from datetime import datetime
 
 import pandas as pd
 import streamlit as st
@@ -25,8 +23,6 @@ from src.database.schema import init_db
 from src.streamlit.theme import (
 	premium_dashboard_styles,
 	render_article_card_html,
-	render_dashboard_hero,
-	render_topic_card_html,
 )
 
 def get_query_param(key: str) -> str | None:
@@ -51,26 +47,50 @@ st.set_page_config(
 )
 
 TIMEFRAME_OPTIONS = {
-	"1 giờ": 1,
-	"6 giờ": 6,
-	"12 giờ": 12,
-	"24 giờ": 24,
-	"7 ngày": 168,
+	"1 hour": 1,
+	"6 hours": 6,
+	"12 hours": 12,
+	"24 hours": 24,
+	"7 days": 168,
 }
 
 HOT_TOPIC_TIMEFRAME_OPTIONS = {
-	"1 giờ": 1,
-	"6 giờ": 6,
-	"24 giờ": 24,
-	"1 tuần": 168,
+	"1 hour": 1,
+	"6 hours": 6,
+	"24 hours": 24,
+	"1 week": 168,
 }
 
+ALL_OPTION = "All"
+UNLABELED_OPTION = "Unlabeled"
+LATEST_OPTION = "Latest"
+
 LABEL_OPTIONS = [
-	"Tất cả",
+	ALL_OPTION,
 	"clickbait",
 	"non-clickbait",
-	"Chưa gán nhãn",
+	UNLABELED_OPTION,
 ]
+
+NAV_OVERVIEW = "📊 Overview"
+NAV_ARTICLES = "📰 Article Explorer"
+NAV_TOPICS = "🔥 Hot Topics"
+
+CATEGORY_LABELS_EN = {
+	"thoi-su": "Current Affairs & Politics",
+	"the-gioi": "World",
+	"kinh-doanh-bds": "Business & Real Estate",
+	"phap-luat": "Law",
+	"khoa-hoc-cong-nghe": "Science & Technology",
+	"the-thao": "Sports",
+	"giai-tri-van-hoa": "Entertainment & Culture",
+	"giao-duc": "Education",
+	"suc-khoe": "Health",
+	"doi-song-ban-doc": "Lifestyle & Readers",
+	"du-lich": "Travel",
+	"xe": "Automotive",
+	"khac": "Other",
+}
 
 # Database functions
 def ensure_database() -> None:
@@ -113,12 +133,59 @@ def get_distinct_values(column: str) -> list[str]:
 	return [str(v) for v in df["value"].tolist() if v is not None]
 
 def normalize_category_label(category: str) -> str:
-	from src.core.categories import get_unified_category, get_category_display_name, get_category_icon
+	from src.core.categories import get_unified_category, get_category_icon
 	value = str(category or "").strip()
 	unified_id = get_unified_category(value)
 	icon = get_category_icon(unified_id)
-	label = get_category_display_name(unified_id)
+	label = CATEGORY_LABELS_EN.get(unified_id, "Other")
 	return f"{icon} {label}"
+
+def resolve_local_model_path() -> str | None:
+	def is_trained_model_dir(path: Path) -> bool:
+		if not path.exists() or not path.is_dir():
+			return False
+		if not (path / "config.json").exists():
+			return False
+		weight_files = ["model.safetensors", "pytorch_model.bin", "tf_model.h5"]
+		return any((path / name).exists() for name in weight_files)
+
+	candidates = [
+		PROJECT_ROOT / "results" / "models" / "phobert_clickbait",
+		PROJECT_ROOT / "results" / "models" / "visobert_clickbait",
+		PROJECT_ROOT / "results" / "models" / "xlm_roberta_clickbait",
+		PROJECT_ROOT / "models" / "phobert_clickbait",
+	]
+	for candidate in candidates:
+		if is_trained_model_dir(candidate):
+			return str(candidate)
+	return None
+
+def run_local_labeling(batch_size: int = 32, model_version: str = "phobert_v1.0") -> tuple[bool, str]:
+	model_path = resolve_local_model_path()
+	if not model_path:
+		return (
+			False,
+			"No trained model found. A valid model directory must contain `config.json` and weights (`model.safetensors` or `pytorch_model.bin`).",
+		)
+
+	try:
+		from src.scripts.pred_label import run_labeling
+
+		run_labeling(
+			model_path=model_path,
+			model_version=model_version,
+			batch_size=batch_size,
+			show_samples=False,
+		)
+		cached_read_sql.clear()
+		get_row_count.clear()
+		get_distinct_values.clear()
+		get_recent_articles.clear()
+		get_latest_articles.clear()
+		get_available_hot_topic_dates.clear()
+		return True, f"Local labeling completed successfully using `{model_path}`. No Gemini API was used."
+	except Exception as exc:  # noqa: BLE001
+		return False, f"Labeling failed: {exc}"
 
 def prepare_article_records(df: pd.DataFrame) -> list[dict]:
 	"""Sanitize article DataFrame and return list of dict records."""
@@ -144,11 +211,11 @@ def _build_article_where_clause(
 		clauses.append("crawled_at >= datetime('now', '-' || ? || ' hours')")
 		params.append(hours)
 
-	if source and source != "Tất cả":
+	if source and source != ALL_OPTION:
 		clauses.append("source = ?")
 		params.append(source)
 
-	if category and category != "Tất cả":
+	if category and category != ALL_OPTION:
 		if category == 'khac':
 			from src.core.categories import CATEGORY_MAP
 			placeholders = ", ".join("?" for _ in CATEGORY_MAP.keys())
@@ -165,8 +232,8 @@ def _build_article_where_clause(
 				clauses.append("category = ?")
 				params.append(category)
 
-	if label and label != "Tất cả":
-		if label == "Chưa gán nhãn":
+	if label and label != ALL_OPTION:
+		if label == UNLABELED_OPTION:
 			clauses.append("predicted_label IS NULL")
 		else:
 			clauses.append("predicted_label = ?")
@@ -245,9 +312,9 @@ def get_available_hot_topic_dates() -> list[str]:
 		return []
 	return [str(d) for d in df["topic_date"].tolist() if d]
 
-def get_hot_topics_for_feed(hours: int, date_filter: str = "Mới nhất", limit: int = 10) -> pd.DataFrame:
+def get_hot_topics_for_feed(hours: int, date_filter: str = LATEST_OPTION, limit: int = 10) -> pd.DataFrame:
 	"""Return up to *limit* topics for a timeframe, backfilling from older snapshots if needed."""
-	if date_filter != "Mới nhất":
+	if date_filter != LATEST_OPTION:
 		# Filter by specific date
 		return uncached_read_sql(
 			"""
@@ -373,10 +440,10 @@ def get_badge_html(label, score):
 		text = "⚠️ Clickbait"
 		badge_class = "badge-clickbait"
 	elif label == "non-clickbait":
-		text = "✓ Xác thực"
+		text = "✓ Verified"
 		badge_class = "badge-safe"
 	else:
-		text = "? Chưa gán"
+		text = "? Unlabeled"
 		badge_class = "badge-unlabeled"
 	
 	score_str = f" ({score:.0%})" if score and label in ["clickbait", "non-clickbait"] else ""
@@ -387,14 +454,14 @@ def render_article_detail(article_id):
 	article = get_article_by_id(article_id)
 
 	if not article:
-		st.error("Không tìm thấy bài báo")
-		if st.button("← Quay lại"):
+		st.error("Article not found.")
+		if st.button("← Back"):
 			st.session_state.selected_article_id = None
 			clear_query_params()
 			st.rerun()
 		return
 
-	if st.button("← Quay lại danh sách", key="back_to_list_btn"):
+	if st.button("← Back to list", key="back_to_list_btn"):
 		st.session_state.selected_article_id = None
 		clear_query_params()
 		st.rerun()
@@ -407,7 +474,7 @@ def render_article_detail(article_id):
 	content_text = str(article.get("content_text", "") or "").strip()
 	summary = html.escape(str(article.get("summary", "") or ""))
 	url = str(article.get("url", "") or "").strip()
-	label = article.get("predicted_label", "Chưa gán nhãn")
+	label = article.get("predicted_label", UNLABELED_OPTION)
 	raw_score = article.get("prediction_score", 0)
 	try:
 		score = float(raw_score) if raw_score is not None else 0.0
@@ -415,8 +482,8 @@ def render_article_detail(article_id):
 		score = 0.0
 
 	badge_html = get_badge_html(label, score)
-	content_html = html.escape(content_text).replace("\n", "<br>") if content_text else "Chưa có nội dung đầy đủ."
-	url_html = f'<div class="article-detail-url">🔗 <a href="{html.escape(url)}" target="_blank" rel="noopener noreferrer">Mở bài viết gốc</a></div>' if url else ""
+	content_html = html.escape(content_text).replace("\n", "<br>") if content_text else "No full article content available."
+	url_html = f'<div class="article-detail-url">🔗 <a href="{html.escape(url)}" target="_blank" rel="noopener noreferrer">Open original article</a></div>' if url else ""
 
 	st.markdown(
 		f"""
@@ -426,7 +493,7 @@ def render_article_detail(article_id):
 				<h2 style="margin: 0 0 15px 0; font-size: clamp(24px, 2.5vw, 36px); line-height: 1.25; color: var(--text); font-weight: 800;">{title}</h2>
 				<div style="margin-bottom: 15px;">{badge_html}</div>
 				<div style="background: rgba(57, 166, 255, 0.10); padding: 15px; border-radius: var(--radius-md); border-left: 4px solid var(--accent); margin-bottom: 20px; border: 1px solid var(--panel-border);">
-					<h4 style="margin: 0 0 5px 0; font-size: 14px; text-transform: uppercase; color: var(--muted-strong); font-weight: 700;">Tóm tắt nhanh (AI)</h4>
+					<h4 style="margin: 0 0 5px 0; font-size: 14px; text-transform: uppercase; color: var(--muted-strong); font-weight: 700;">Quick Summary (AI)</h4>
 					<p style="font-size: 14px; line-height: 1.6; color: var(--text); margin: 0;">{summary}</p>
 				</div>
 				<div class="article-detail-body" style="font-size: 15px; line-height: 1.8; color: var(--text);">{content_html}</div>
@@ -441,8 +508,8 @@ def render_topic_detail(topic_id: int):
 	"""Render a dedicated page for a hot topic and its linked articles."""
 	topic = get_hot_topic_by_id(topic_id)
 	if not topic:
-		st.error("Không tìm thấy chủ đề")
-		if st.button("← Quay lại"):
+		st.error("Topic not found.")
+		if st.button("← Back"):
 			st.session_state.selected_topic_id = None
 			st.session_state.current_view = "home"
 			st.rerun()
@@ -450,7 +517,7 @@ def render_topic_detail(topic_id: int):
 
 	articles_df = get_articles_by_topic_id(topic_id)
 
-	if st.button("← Quay lại danh sách chủ đề", key="back_to_topics_btn"):
+	if st.button("← Back to topics", key="back_to_topics_btn"):
 		st.session_state.selected_topic_id = None
 		st.session_state.current_view = "home"
 		clear_query_params()
@@ -460,9 +527,9 @@ def render_topic_detail(topic_id: int):
 		f"""
 		<div class="topic-shell" style="margin-top: 15px;">
 			<div class="article-detail" style="padding: 20px;">
-				<div class="article-detail-meta"><b>Chủ đề nóng</b> · Khung thời gian {html.escape(str(topic.get('timeframe') or ''))}h · Snapshot {html.escape(str(topic.get('created_at') or ''))}</div>
+				<div class="article-detail-meta"><b>Hot Topic</b> · Timeframe {html.escape(str(topic.get('timeframe') or ''))}h · Snapshot {html.escape(str(topic.get('created_at') or ''))}</div>
 				<h2 style="margin: 0 0 10px 0; font-size: clamp(24px, 2.5vw, 36px); color: var(--accent); font-weight: 800;">{html.escape(str(topic.get('topic_name') or ''))}</h2>
-				<div style="font-size: 14px; color: var(--muted-strong); margin-top: 8px;"><b>Từ khóa chính:</b> {html.escape(str(topic.get('keywords') or ''))}</div>
+				<div style="font-size: 14px; color: var(--muted-strong); margin-top: 8px;"><b>Top keywords:</b> {html.escape(str(topic.get('keywords') or ''))}</div>
 			</div>
 		</div>
 		""",
@@ -470,14 +537,14 @@ def render_topic_detail(topic_id: int):
 	)
 
 	if articles_df.empty:
-		st.info("Chủ đề này chưa có bài viết liên kết.")
+		st.info("No linked articles for this topic yet.")
 		return
 
-	st.markdown(f"<h3 style='margin: 25px 0 15px 0; font-size: 18px; font-weight: 700;'>Các bài viết liên quan ({len(articles_df):,})</h3>", unsafe_allow_html=True)
+	st.markdown(f"<h3 style='margin: 25px 0 15px 0; font-size: 18px; font-weight: 700;'>Related articles ({len(articles_df):,})</h3>", unsafe_allow_html=True)
 	
 	for idx, article in enumerate(prepare_article_records(articles_df)):
-		title = html.escape(str(article.get("title", "") or "(Không có tiêu đề)"))
-		summary = html.escape(str(article.get("summary", "") or "Chưa có tóm tắt."))
+		title = html.escape(str(article.get("title", "") or "(Untitled)"))
+		summary = html.escape(str(article.get("summary", "") or "No summary available."))
 		source = html.escape(str(article.get("source", "")))
 		published_at = html.escape(str(article.get("published_at") or article.get("crawled_at") or ""))
 		badge = get_badge_html(article.get("predicted_label"), article.get("prediction_score"))
@@ -529,9 +596,9 @@ def main():
 	if "current_view" not in st.session_state:
 		st.session_state.current_view = "home"
 	if "navigation_page" not in st.session_state:
-		st.session_state.navigation_page = "📊 Tổng Quan"
+		st.session_state.navigation_page = NAV_OVERVIEW
 	if "last_page" not in st.session_state:
-		st.session_state.last_page = "📊 Tổng Quan"
+		st.session_state.last_page = NAV_OVERVIEW
 
 	# Check query parameters for article_id or topic_id to handle clickable HTML cards
 	qp_article_id = get_query_param("article_id")
@@ -542,7 +609,7 @@ def main():
 	if qp_topic_id:
 		st.session_state.selected_topic_id = int(qp_topic_id)
 		st.session_state.current_view = "topic_detail"
-		st.session_state.navigation_page = "🔥 Chủ Đề Nóng"
+		st.session_state.navigation_page = NAV_TOPICS
 
 	# Render Topbar Navigation
 	col_logo, col_nav = st.columns([1, 2.2])
@@ -551,15 +618,15 @@ def main():
 			"""
 			<div style="padding-top: 5px; margin-bottom: 20px;">
 				<h1 style="margin: 0; color: var(--accent); font-size: 28px; font-weight: 800; line-height: 1.2;">VnNew<span style="color: var(--text);">AI</span></h1>
-				<p style="font-size: 10px; color: var(--muted); margin: 0; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">Hệ Thống Phân Tích Tin Tức</p>
+				<p style="font-size: 10px; color: var(--muted); margin: 0; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;">AI News Analysis System</p>
 			</div>
 			""",
 			unsafe_allow_html=True,
 		)
 	with col_nav:
 		selected_page = st.radio(
-			"Menu điều hướng",
-			["📊 Tổng Quan", "📰 Khai Phá Bài Viết", "🔥 Chủ Đề Nóng"],
+			"Navigation menu",
+			[NAV_OVERVIEW, NAV_ARTICLES, NAV_TOPICS],
 			key="navigation_page",
 			horizontal=True,
 			label_visibility="collapsed"
@@ -584,13 +651,45 @@ def main():
 		render_topic_detail(st.session_state.selected_topic_id)
 		return
 
-	# PAGE 1: TỔNG QUAN
-	if selected_page == "📊 Tổng Quan":
-		st.markdown("<h2 class='dashboard-title'>Tổng Quan Hệ Thống</h2>", unsafe_allow_html=True)
-		st.markdown("<p class='dashboard-subtitle'>Thống kê quan trọng, tin tức mới cập nhật và các chủ đề nóng phát hiện bởi AI.</p>", unsafe_allow_html=True)
+	# PAGE 1: OVERVIEW
+	if selected_page == NAV_OVERVIEW:
+		st.markdown("<h2 class='dashboard-title'>System Overview</h2>", unsafe_allow_html=True)
+		st.markdown("<p class='dashboard-subtitle'>Key metrics, latest articles, and AI-detected hot topics.</p>", unsafe_allow_html=True)
+		with st.expander("Actions", expanded=False):
+			st.caption("Run local clickbait labeling from this dashboard. Gemini API is not required.")
+			col_cfg_1, col_cfg_2 = st.columns(2)
+			with col_cfg_1:
+				label_batch_size = int(
+					st.number_input(
+						"Batch size",
+						min_value=1,
+						max_value=512,
+						value=32,
+						step=1,
+						key="ov_label_batch_size",
+					)
+				)
+			with col_cfg_2:
+				label_model_version = st.text_input(
+					"Model version",
+					value="phobert_v1.0",
+					key="ov_label_model_version",
+				).strip() or "phobert_v1.0"
+
+			if st.button("Run local labeling now", key="ov_run_local_labeling_btn"):
+				with st.spinner("Running local labeling..."):
+					ok, message = run_local_labeling(
+						batch_size=label_batch_size,
+						model_version=label_model_version,
+					)
+				if ok:
+					st.success(message)
+					st.rerun()
+				else:
+					st.error(message)
 		
 		# Fetch Stats (All-time stats to represent the whole database)
-		stats = get_overview_stats(0, "Tất cả", "Tất cả", "Tất cả")
+		stats = get_overview_stats(0, ALL_OPTION, ALL_OPTION, ALL_OPTION)
 			
 		db_total_articles = get_row_count("articles")
 		db_hot_topics = get_row_count("hot_topics")
@@ -599,16 +698,16 @@ def main():
 		ratio = (clickbait / labeled * 100) if labeled > 0 else 0.0
 		
 		# KPI cards
-		st.markdown("<h3 style='margin: 20px 0 10px 0; font-size: 16px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em;'>Chỉ Số Quan Trọng</h3>", unsafe_allow_html=True)
+		st.markdown("<h3 style='margin: 20px 0 10px 0; font-size: 16px; font-weight: 700; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em;'>Key Metrics</h3>", unsafe_allow_html=True)
 		col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 		with col_m1:
-			st.metric("Tổng Bài Báo Lưu Trữ", f"{db_total_articles:,}", help="Tổng số bài viết đã thu thập")
+			st.metric("Total Stored Articles", f"{db_total_articles:,}", help="Total number of crawled articles")
 		with col_m2:
-			st.metric("Đã Phân Loại AI", f"{labeled:,}", help="Số lượng bài viết đã gán nhãn clickbait")
+			st.metric("AI-Labeled Articles", f"{labeled:,}", help="Articles labeled by the clickbait classifier")
 		with col_m3:
-			st.metric("Số Bài Nghi Clickbait", f"{clickbait:,}", help="Số bài báo bị phát hiện là clickbait")
+			st.metric("Detected Clickbait", f"{clickbait:,}", help="Articles predicted as clickbait")
 		with col_m4:
-			st.metric("Tỷ Lệ Clickbait", f"{ratio:.1f}%", help="Tỷ lệ clickbait trên tổng số bài đã gán nhãn")
+			st.metric("Clickbait Rate", f"{ratio:.1f}%", help="Clickbait share among labeled articles")
 			
 		st.markdown("<hr style='border: 0; border-top: 1px solid var(--panel-border); margin: 25px 0;'>", unsafe_allow_html=True)
 		
@@ -616,10 +715,10 @@ def main():
 		col_left, col_right = st.columns([1.6, 1], gap="large")
 		
 		with col_left:
-			st.markdown("<h3 class='section-title'>TIN TỨC MỚI NHẤT</h3>", unsafe_allow_html=True)
+			st.markdown("<h3 class='section-title'>LATEST NEWS</h3>", unsafe_allow_html=True)
 			latest_articles = get_latest_articles(limit=5)
 			if latest_articles.empty:
-				st.info("Chưa có bài báo nào trong cơ sở dữ liệu.")
+				st.info("No articles found in the database yet.")
 			else:
 				for idx, article in enumerate(prepare_article_records(latest_articles)):
 					title = html.escape(str(article.get("title", ""))[:100])
@@ -637,12 +736,12 @@ def main():
 		with col_right:
 			col_title, col_sel = st.columns([1.5, 1])
 			with col_title:
-				st.markdown("<h3 class='section-title' style='margin-top: 0;'>CHỦ ĐỀ NÓNG</h3>", unsafe_allow_html=True)
+				st.markdown("<h3 class='section-title' style='margin-top: 0;'>HOT TOPICS</h3>", unsafe_allow_html=True)
 			with col_sel:
 				ov_hot_timeframe = st.selectbox(
-					"Khung thời gian chủ đề nóng",
+					"Hot topic timeframe",
 					options=list(HOT_TOPIC_TIMEFRAME_OPTIONS.keys()),
-					index=2, # Mặc định 24 giờ
+					index=2,
 					key="ov_hot_timeframe_selector",
 					label_visibility="collapsed"
 				)
@@ -650,11 +749,11 @@ def main():
 			hours_val = HOT_TOPIC_TIMEFRAME_OPTIONS.get(ov_hot_timeframe, 24)
 			hot_topics_feed = get_hot_topics_for_feed(hours_val, limit=5)
 			if hot_topics_feed.empty:
-				st.info(f"Chưa phát hiện chủ đề nóng trong {ov_hot_timeframe} gần nhất.")
+				st.info(f"No hot topics detected in the last {ov_hot_timeframe}.")
 			else:
 				for idx, topic in enumerate(hot_topics_feed.to_dict("records")):
 					topic_id = topic.get("id")
-					topic_name = html.escape(str(topic.get("topic_name", "") or "(Chưa đặt tên)"))
+					topic_name = html.escape(str(topic.get("topic_name", "") or "(Untitled topic)"))
 					article_count = int(topic.get("article_count") or 0)
 					keywords = html.escape(str(topic.get("keywords", "") or ""))
 					
@@ -663,49 +762,49 @@ def main():
 						<a href="?topic_id={topic_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
 							<div class="topic-card" style="margin-bottom: 12px; background: var(--panel); padding: 15px; border: 1px solid var(--panel-border); border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 								<div class="topic-card-title" style="font-size: 15px; font-weight: 700; color: var(--accent);">{topic_name}</div>
-								<div class="topic-card-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 5px; text-transform: uppercase;">🔥 {article_count} bài viết</div>
-								<div style="font-size: 12.5px; color: var(--muted-strong); margin-top: 6px; line-height: 1.4;"><b>Từ khóa:</b> {keywords}</div>
+								<div class="topic-card-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 5px; text-transform: uppercase;">🔥 {article_count} articles</div>
+								<div style="font-size: 12.5px; color: var(--muted-strong); margin-top: 6px; line-height: 1.4;"><b>Keywords:</b> {keywords}</div>
 							</div>
 						</a>
 						""",
 						unsafe_allow_html=True
 					)
 
-	# PAGE 2: KHAI PHÁ BÀI VIẾT
-	elif selected_page == "📰 Khai Phá Bài Viết":
-		st.markdown("<h2 class='dashboard-title'>Khai Phá Báo Chí</h2>", unsafe_allow_html=True)
-		st.markdown("<p class='dashboard-subtitle'>Lọc bài viết theo khung thời gian, nguồn báo chí, thể loại và nhãn dự đoán từ mô hình AI.</p>", unsafe_allow_html=True)
+	# PAGE 2: ARTICLE EXPLORER
+	elif selected_page == NAV_ARTICLES:
+		st.markdown("<h2 class='dashboard-title'>Article Explorer</h2>", unsafe_allow_html=True)
+		st.markdown("<p class='dashboard-subtitle'>Filter news by timeframe, source, category, and clickbait prediction labels.</p>", unsafe_allow_html=True)
 		
-		search_query = st.text_input("🔍 Tìm kiếm theo từ khóa trong tiêu đề/tóm tắt", placeholder="Nhập từ khóa cần tìm...", key="exp_search_query")
+		search_query = st.text_input("🔍 Search in title or summary", placeholder="Enter keyword...", key="exp_search_query")
 		
 		# Filters Panel
 		col_f1, col_f2, col_f3, col_f4 = st.columns(4)
 		with col_f1:
 			time_filter = st.selectbox(
-				"Khung thời gian",
-				options=["Tất cả"] + list(TIMEFRAME_OPTIONS.keys()),
-				index=4, # Default 7 ngày
+				"Time window",
+				options=[ALL_OPTION] + list(TIMEFRAME_OPTIONS.keys()),
+				index=4,
 				key="exp_time_filter"
 			)
 		with col_f2:
-			sources = ["Tất cả"] + get_distinct_values("source")
+			sources = [ALL_OPTION] + get_distinct_values("source")
 			source_filter = st.selectbox(
-				"Nguồn báo chí",
+				"News source",
 				options=sources,
 				index=0,
 				key="exp_source_filter"
 			)
 		with col_f3:
-			from src.core.categories import UNIFIED_CATEGORIES, get_category_display_name, get_category_icon
-			categories = ["Tất cả"] + list(UNIFIED_CATEGORIES.keys())
+			from src.core.categories import UNIFIED_CATEGORIES, get_category_icon
+			categories = [ALL_OPTION] + list(UNIFIED_CATEGORIES.keys())
 			
 			def format_category_option(cat_id: str) -> str:
-				if cat_id == "Tất cả":
-					return "Tất cả"
-				return f"{get_category_icon(cat_id)} {get_category_display_name(cat_id)}"
+				if cat_id == ALL_OPTION:
+					return ALL_OPTION
+				return f"{get_category_icon(cat_id)} {CATEGORY_LABELS_EN.get(cat_id, 'Other')}"
 
 			category_filter = st.selectbox(
-				"Thể loại báo",
+				"Category",
 				options=categories,
 				index=0,
 				format_func=format_category_option,
@@ -713,14 +812,14 @@ def main():
 			)
 		with col_f4:
 			label_filter = st.selectbox(
-				"Nhãn Clickbait",
+				"Clickbait label",
 				options=LABEL_OPTIONS,
 				index=0,
 				key="exp_label_filter"
 			)
 		
 		# Query articles based on filters
-		hours = TIMEFRAME_OPTIONS.get(time_filter, 0) if time_filter != "Tất cả" else 0
+		hours = TIMEFRAME_OPTIONS.get(time_filter, 0) if time_filter != ALL_OPTION else 0
 		articles_df = get_recent_articles(hours, source_filter, category_filter, label_filter, limit=300)
 		
 		if search_query.strip():
@@ -732,30 +831,30 @@ def main():
 			articles_df = articles_df[mask]
 			
 		if articles_df.empty:
-			st.info("Không tìm thấy bài viết nào đáp ứng bộ lọc hiện tại.")
+			st.info("No articles match the current filters.")
 		else:
-			st.markdown(f"<p style='color: var(--muted-strong); font-weight: 600; margin-bottom: 15px;'>Tìm thấy <b>{len(articles_df):,}</b> bài báo phù hợp</p>", unsafe_allow_html=True)
+			st.markdown(f"<p style='color: var(--muted-strong); font-weight: 600; margin-bottom: 15px;'>Found <b>{len(articles_df):,}</b> matching articles</p>", unsafe_allow_html=True)
 			render_article_grid_clickable(prepare_article_records(articles_df.head(60)))
 
-	# PAGE 3: CHỦ ĐỀ NÓNG
-	elif selected_page == "🔥 Chủ Đề Nóng":
-		st.markdown("<h2 class='dashboard-title'>Chủ Đề Tin Tức Nổi Bật</h2>", unsafe_allow_html=True)
-		st.markdown("<p class='dashboard-subtitle'>Hệ thống gom cụm tin tức tự động dựa trên thuật toán AI giúp phát hiện các sự kiện nổi cộm.</p>", unsafe_allow_html=True)
+	# PAGE 3: HOT TOPICS
+	elif selected_page == NAV_TOPICS:
+		st.markdown("<h2 class='dashboard-title'>Trending News Topics</h2>", unsafe_allow_html=True)
+		st.markdown("<p class='dashboard-subtitle'>Automatic topic clustering over recent articles to surface major events.</p>", unsafe_allow_html=True)
 		
-		topic_search_query = st.text_input("🔍 Tìm kiếm theo tên chủ đề hoặc từ khóa", placeholder="Nhập tên chủ đề hoặc từ khóa...", key="ht_search_query")
+		topic_search_query = st.text_input("🔍 Search by topic name or keyword", placeholder="Enter topic name or keyword...", key="ht_search_query")
 		
 		col_ht1, col_ht2 = st.columns(2)
 		with col_ht1:
 			hot_timeframe = st.selectbox(
-				"Khung thời gian gom cụm",
+				"Clustering timeframe",
 				options=list(HOT_TOPIC_TIMEFRAME_OPTIONS.keys()),
-				index=2, # Default 24 giờ
+				index=2,
 				key="ht_timeframe_selector"
 			)
 		with col_ht2:
-			available_dates = ["Mới nhất"] + get_available_hot_topic_dates()
+			available_dates = [LATEST_OPTION] + get_available_hot_topic_dates()
 			hot_date_filter = st.selectbox(
-				"Ngày ghi nhận",
+				"Snapshot date",
 				options=available_dates,
 				index=0,
 				key="ht_date_selector"
@@ -775,13 +874,13 @@ def main():
 		st.markdown("<hr style='border: 0; border-top: 1px solid var(--panel-border); margin: 20px 0;'>", unsafe_allow_html=True)
 		
 		if hot_topics_feed.empty:
-			st.info(f"Hiện tại chưa phát hiện hoặc không tìm thấy cụm chủ đề nóng nào phù hợp.")
+			st.info("No matching hot topic clusters were found.")
 		else:
-			st.markdown(f"<p style='color: var(--muted-strong); font-weight: 600; margin-bottom: 15px;'>Phát hiện/Tìm thấy <b>{len(hot_topics_feed)}</b> chủ đề nóng nổi bật</p>", unsafe_allow_html=True)
+			st.markdown(f"<p style='color: var(--muted-strong); font-weight: 600; margin-bottom: 15px;'>Detected/Found <b>{len(hot_topics_feed)}</b> prominent hot topics</p>", unsafe_allow_html=True)
 			
 			for idx, topic in enumerate(hot_topics_feed.to_dict("records")):
 				topic_id = topic.get("id")
-				title = html.escape(str(topic.get("topic_name", "") or "(Chưa đặt tên)"))
+				title = html.escape(str(topic.get("topic_name", "") or "(Untitled topic)"))
 				article_count = int(topic.get("article_count") or 0)
 				keywords = html.escape(str(topic.get("keywords", "") or ""))
 				created_at = html.escape(str(topic.get("created_at") or ""))
@@ -792,13 +891,13 @@ def main():
 						<div class="topic-card" style="margin-bottom: 15px; padding: 20px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius-lg); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 							<div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px;">
 								<div class="topic-card-title" style="font-size: 18px; color: var(--accent); font-weight: 800;">{title}</div>
-								<span class="featured-badge badge-safe" style="font-size: 12px; font-weight: 700; background: rgba(79,70,229,0.08); color: var(--accent); border: 1px solid rgba(79,70,229,0.2);">🔥 {article_count} bài viết</span>
+								<span class="featured-badge badge-safe" style="font-size: 12px; font-weight: 700; background: rgba(79,70,229,0.08); color: var(--accent); border: 1px solid rgba(79,70,229,0.2);">🔥 {article_count} articles</span>
 							</div>
 							<div class="topic-card-summary" style="margin-top: 10px; font-size: 14px; color: var(--text);">
-								<strong>Từ khóa chính:</strong> <span style="background: rgba(57, 166, 255, 0.10); padding: 2px 8px; border-radius: 4px; font-weight: 600; color: var(--muted-strong); border: 1px solid var(--panel-border);">{keywords}</span>
+								<strong>Top keywords:</strong> <span style="background: rgba(57, 166, 255, 0.10); padding: 2px 8px; border-radius: 4px; font-weight: 600; color: var(--muted-strong); border: 1px solid var(--panel-border);">{keywords}</span>
 							</div>
 							<div class="topic-card-meta" style="margin-top: 12px; font-size: 11px; color: var(--muted);">
-								<span>Ghi nhận lúc: {created_at}</span>
+								<span>Captured at: {created_at}</span>
 							</div>
 						</div>
 					</a>
