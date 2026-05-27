@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from src.config import DB_PATH
 
 
-def init_db(db_path: str = DB_PATH):
+def init_db(db_path: str = DB_PATH, verbose: bool = True):
     """Khởi tạo database với schema chuẩn cho Module 1."""
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -92,7 +92,8 @@ def init_db(db_path: str = DB_PATH):
     
     conn.commit()
     conn.close()
-    print(f"✅ Database initialised at: {db_path}")
+    if verbose:
+        print(f"Database initialised at: {db_path}")
 
 
 if __name__ == '__main__':

@@ -18,8 +18,11 @@ import argparse
 import subprocess
 import sys
 import os
+import socket
+import sqlite3
 from pathlib import Path
 from dotenv import load_dotenv
+from src.config import DB_PATH
 
 if sys.stdout.encoding != 'utf-8':
     sys.stdout.reconfigure(encoding='utf-8')
@@ -42,12 +45,6 @@ BLUE = "\033[34m"
 RED = "\033[31m"
 WHITE = "\033[37m"
 
-TOP_ICON = "◆"
-SECTION_ICON = "▣"
-ITEM_ICON = "▸"
-ACTION_ICON = "➤"
-
-
 def style(text: str, color: str = "", bold: bool = False, dim: bool = False) -> str:
     parts = []
     if bold:
@@ -62,15 +59,15 @@ def style(text: str, color: str = "", bold: bool = False, dim: bool = False) -> 
 
 
 def print_header(title: str):
-    print(style(f"\n{TOP_ICON} {title}", CYAN, bold=True))
+    print(style(f"\n{title}", bold=True))
 
 
 def print_section(title: str, color: str):
-    print(style(f"\n{SECTION_ICON} {title}", color, bold=True))
+    print(style(f"\n{title}", bold=True))
 
 
-def print_option(number: int | str, label: str, color: str = WHITE, icon: str = ITEM_ICON):
-    print(style(f"  {icon} {number}. {label}", color))
+def print_option(number: int | str, label: str, color: str = ""):
+    print(style(f"  {number}. {label}", color))
 
 
 def run_python_script(script_name: str, args: list[str] | None = None):
@@ -81,7 +78,7 @@ def run_python_script(script_name: str, args: list[str] | None = None):
         cmd.extend(args)
 
     print("Running:\n  " + " ".join(cmd))
-    subprocess.run(cmd, cwd=ROOT)
+    return subprocess.run(cmd, cwd=ROOT)
 
 
 def _is_trained_model_dir(path: Path) -> bool:
@@ -113,9 +110,76 @@ def resolve_model_path(preferred: str | None = None) -> str | None:
     return None
 
 
-def run_streamlit(port: int = 8501):
+def get_article_count() -> int:
+    """Return total article rows from the SQLite database."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute("SELECT COUNT(*) FROM articles").fetchone()
+            return int(row[0]) if row else 0
+    except Exception:
+        return 0
+
+
+def get_labeled_article_count() -> int:
+    """Return number of labeled articles in the SQLite database."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            row = conn.execute("SELECT COUNT(*) FROM articles WHERE predicted_label IS NOT NULL").fetchone()
+            return int(row[0]) if row else 0
+    except Exception:
+        return 0
+
+
+def train_model_if_needed(output_dir: str = DEFAULT_MODEL_PATH) -> bool:
+    """Train a clickbait model only when no trained model is available."""
+    existing_model = resolve_model_path(preferred=output_dir)
+    if existing_model:
+        print(style(f"Model ready: {existing_model}", GREEN))
+        return True
+
+    dataset_path = Path(ROOT, "data", "clickbait_vietnamese_dataset.csv")
+    if not dataset_path.exists():
+        print(style("ERROR: dataset not found for training:", RED, bold=True))
+        print(f"  {dataset_path}")
+        return False
+
+    train_script = os.path.join(ROOT, "src", "models", "train_clickbait.py")
+    cmd = [sys.executable, train_script, "--output-dir", output_dir]
+    print(style("No trained model found. Training model now...", YELLOW, bold=True))
+    print("Running:\n  " + " ".join(cmd))
+    result = subprocess.run(cmd, cwd=ROOT)
+    if result.returncode != 0:
+        print(style("ERROR: model training failed.", RED, bold=True))
+        return False
+
+    trained_model = resolve_model_path(preferred=output_dir)
+    if not trained_model:
+        print(style("ERROR: training finished but no model weights were found.", RED, bold=True))
+        return False
+
+    print(style(f"Training completed. Model ready: {trained_model}", GREEN))
+    return True
+
+
+def find_available_port(start_port: int = 8501, host: str = "127.0.0.1", max_tries: int = 100) -> int:
+    """Find the first available TCP port, starting from start_port."""
+    for port in range(start_port, start_port + max_tries):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.bind((host, port))
+                return port
+            except OSError:
+                continue
+    raise RuntimeError(f"No available port found in range {start_port}-{start_port + max_tries - 1}.")
+
+
+def run_streamlit(start_port: int = 8501):
     """Run the Streamlit dashboard using the current Python interpreter."""
     dashboard_path = os.path.join(ROOT, "src", "streamlit", "streamlit.py")
+    port = find_available_port(start_port=start_port)
+    if port != start_port:
+        print(style(f"Port {start_port} is busy. Using {port} instead.", YELLOW))
     cmd = [sys.executable, "-m", "streamlit", "run", dashboard_path, "--server.address", "127.0.0.1", "--server.port", str(port)]
     print("Starting Streamlit:\n  " + " ".join(cmd))
     print("Press Ctrl+C to stop the server cleanly.")
@@ -138,15 +202,15 @@ def init_db(db_path: str | None = None):
     args: list[str] = []
     if db_path:
         args.extend(["--db-path", db_path])
-    run_python_script("db_init.py", args)
+    return run_python_script("db_init.py", args)
 
 
 def crawl_all():
-    run_python_script("crawl.py", ["--mode", "full"])
+    return run_python_script("crawl.py", ["--mode", "full"])
 
 
 def crawl_hourly():
-    run_python_script("crawl.py", ["--mode", "hourly"])
+    return run_python_script("crawl.py", ["--mode", "hourly"])
 
 
 def seed_data(source: str, category: str | None, limit: int, db_path: str | None):
@@ -155,7 +219,7 @@ def seed_data(source: str, category: str | None, limit: int, db_path: str | None
         args.extend(["--category", category])
     if db_path:
         args.extend(["--db-path", db_path])
-    run_python_script("db_seed.py", args)
+    return run_python_script("db_seed.py", args)
 
 
 def label_articles(model_path: str | None, model_version: str, batch_size: int, show_samples: bool):
@@ -166,7 +230,7 @@ def label_articles(model_path: str | None, model_version: str, batch_size: int, 
         print("  - results/models/phobert_clickbait/model.safetensors")
         print("Train first with:")
         print('  python src/models/train_clickbait.py --output-dir "results/models/phobert_clickbait"')
-        return
+        return False
 
     args = [
         "--model-path", resolved_model_path,
@@ -175,69 +239,62 @@ def label_articles(model_path: str | None, model_version: str, batch_size: int, 
     ]
     if show_samples:
         args.append("--show-samples")
-    run_python_script("pred_label.py", args)
+    result = run_python_script("pred_label.py", args)
+    return result.returncode == 0
 
 
 def detect_topics(hours: int, top_n: int):
-    if not os.getenv("GEMINI_API_KEY"):
-        print("Info: GEMINI_API_KEY is not set. Topic naming will use keyword fallback.")
-    run_python_script("topic_detect.py", ["--hours", str(hours), "--top_n", str(top_n)])
+    result = run_python_script("topic_detect.py", ["--hours", str(hours), "--top_n", str(top_n)])
+    return result.returncode == 0
 
 
 def detect_topics_all_timeframes():
-    if not os.getenv("GEMINI_API_KEY"):
-        print("Info: GEMINI_API_KEY is not set. Topic naming will use keyword fallback.")
-    run_python_script("topic_detect.py", ["--all-timeframes"])
+    result = run_python_script("topic_detect.py", ["--all-timeframes"])
+    return result.returncode == 0
 
 
 def run_scheduler_daemon():
-    run_python_script("sched_run.py")
+    return run_python_script("sched_run.py")
 
 
 def check_db():
-    run_python_script("db_tools.py", ["check"])
+    return run_python_script("db_tools.py", ["check"])
 
 
 def query_db():
-    run_python_script("db_tools.py", ["stats"])
+    return run_python_script("db_tools.py", ["stats"])
 
 
 def clean_db(days: int):
-    run_python_script("db_clean.py", ["--days", str(days)])
+    return run_python_script("db_clean.py", ["--days", str(days)])
 
 
 def interactive_menu():
+    def print_menu() -> None:
+        article_count = get_article_count()
+        labeled_count = get_labeled_article_count()
+        model_path = resolve_model_path()
+        model_status = model_path if model_path else "not trained"
+
+        print_header("AI News Content Analysis")
+        print(style("  Fast command center (max 10 options). Press Ctrl+C to exit.", DIM))
+        print(style(f"  DB: {article_count} articles | labeled: {labeled_count}", DIM))
+        print(style(f"  Model: {model_status}", DIM))
+        print("\nMain Actions")
+        print_option(1, "Launch Streamlit dashboard")
+        print_option(2, "Run full auto workflow")
+        print_option(3, "Crawl all newspapers (full)")
+        print_option(4, "Crawl hourly updates")
+        print_option(5, "Selective crawl (source/category)")
+        print_option(6, "Label unlabeled articles (local model)")
+        print_option(7, "Detect hot topics")
+        print_option(8, "Database tools")
+        print_option(9, "Run scheduler daemon")
+        print_option(0, "Exit")
+
     while True:
         try:
-            print_header("AI News Content Analysis")
-            print(style("  Choose an action. Press Ctrl+C to exit safely.", DIM))
-
-            print_section("Core", CYAN)
-            print_option(1, "Run Streamlit dashboard (localhost:8501)", WHITE, icon=ACTION_ICON)
-            print_option(2, "Single-run pipeline (crawl -> label -> topics)", MAGENTA, icon=ACTION_ICON)
-            print_option(3, "Run scheduler daemon", MAGENTA, icon=ACTION_ICON)
-            print(style("  * Hint: press Ctrl+C in this terminal to stop Streamlit.", DIM))
-
-            print_section("Database", BLUE)
-            print_option(4, "Initialize / reset database", WHITE)
-            print_option(5, "Check database status", WHITE)
-            print_option(6, "Query database statistics", WHITE)
-            print_option(7, "Clean old database data", WHITE)
-
-            print_section("Crawling", GREEN)
-            print_option(8, "Crawl all newspapers (full)", WHITE)
-            print_option(9, "Crawl hourly (incremental)", WHITE)
-            print_option(10, "Selective crawl (source/category)", WHITE)
-
-            print_section("AI Analysis", YELLOW)
-            print_option(11, "Label unpredicted articles", WHITE)
-            print_option(12, "Detect hot topics (single timeframe)", WHITE)
-            print_option(13, "Detect hot topics (all timeframes)", WHITE)
-
-            print_section("More", MAGENTA)
-            print_option(14, "Automation submenu (legacy)", WHITE)
-            print_option(0, "Exit", RED, icon=ACTION_ICON)
-
+            print_menu()
             choice = input("Choose an option: ").strip()
         except KeyboardInterrupt:
             print()
@@ -252,38 +309,14 @@ def interactive_menu():
             print(style("Bye", GREEN, bold=True))
             return
         if choice == "1":
-            port_raw = input("Dashboard port (default 8501): ").strip() or "8501"
-            try:
-                port = int(port_raw)
-            except ValueError:
-                print(style("Invalid port, using 8501", YELLOW))
-                port = 8501
-            run_streamlit(port=port)
+            run_streamlit()
         elif choice == "2":
             run_single_automation()
         elif choice == "3":
-            run_scheduler_daemon()
-        elif choice == "4":
-            confirm = input("This will ensure DB schema exists. Continue? [y/N]: ")
-            if confirm.lower().startswith("y"):
-                init_db()
-        elif choice == "5":
-            check_db()
-        elif choice == "6":
-            query_db()
-        elif choice == "7":
-            days_raw = input("Days window to keep (default 14): ").strip() or "14"
-            try:
-                days = int(days_raw)
-            except ValueError:
-                print(style("Invalid number, using 14", YELLOW))
-                days = 14
-            clean_db(days=days)
-        elif choice == "8":
             crawl_all()
-        elif choice == "9":
+        elif choice == "4":
             crawl_hourly()
-        elif choice == "10":
+        elif choice == "5":
             source = input("Source [vnexpress|tuoitre|vietnamnet|all] (default all): ").strip() or "all"
             category = input("Category (optional): ").strip() or None
             limit_raw = input("Limit per source/category (default 50): ").strip() or "50"
@@ -294,8 +327,7 @@ def interactive_menu():
                 print(style("Invalid limit, using 50", YELLOW))
                 limit = 50
             seed_data(source=source, category=category, limit=limit, db_path=db_path)
-        elif choice == "11":
-            model_path = None
+        elif choice == "6":
             print("Using auto-detected model path (no manual path input required).")
             model_version = input("Model version (default phobert_v1.0): ").strip() or "phobert_v1.0"
             batch_raw = input("Batch size (default 32): ").strip() or "32"
@@ -305,94 +337,117 @@ def interactive_menu():
             except ValueError:
                 print(style("Invalid batch size, using 32", YELLOW))
                 batch_size = 32
-            label_articles(model_path, model_version, batch_size, show_samples)
-        elif choice == "12":
-            hours_raw = input("Hours window (default 24): ").strip() or "24"
-            top_n_raw = input("Top topics (default 10): ").strip() or "10"
-            try:
-                hours = int(hours_raw)
-                top_n = int(top_n_raw)
-            except ValueError:
-                print(style("Invalid numbers, using hours=24, top_n=10", YELLOW))
-                hours, top_n = 24, 10
-            detect_topics(hours=hours, top_n=top_n)
-        elif choice == "13":
-            detect_topics_all_timeframes()
-        elif choice == "14":
-            automation_menu()
-        else:
-            print(style("Unknown choice", RED, bold=True))
-
-
-def automation_menu():
-    """Simple automation submenu: single-run pipeline or scheduler."""
-    while True:
-        print_header("Automation Menu")
-        print_option(0, "Back", RED, icon=ACTION_ICON)
-        print_option(1, "Single-run automation (crawl -> label -> topics)", MAGENTA)
-        print_option(2, "Run scheduler daemon", MAGENTA)
-        choice = input("Choose an option: ").strip()
-
-        if choice == "0":
-            return
-        if choice == "1":
-            run_single_automation()
-        elif choice == "2":
+            label_articles(model_path=None, model_version=model_version, batch_size=batch_size, show_samples=show_samples)
+        elif choice == "7":
+            mode = input("Topic mode [1=single timeframe, 2=all timeframes] (default 1): ").strip() or "1"
+            if mode == "2":
+                detect_topics_all_timeframes()
+            else:
+                hours_raw = input("Hours window (default 24): ").strip() or "24"
+                top_n_raw = input("Top topics (default 10): ").strip() or "10"
+                try:
+                    hours = int(hours_raw)
+                    top_n = int(top_n_raw)
+                except ValueError:
+                    print(style("Invalid numbers, using hours=24, top_n=10", YELLOW))
+                    hours, top_n = 24, 10
+                detect_topics(hours=hours, top_n=top_n)
+        elif choice == "8":
+            print_section("Database Tools", BLUE)
+            print_option("a", "Initialize DB schema", WHITE)
+            print_option("b", "Health check", WHITE)
+            print_option("c", "Query statistics", WHITE)
+            print_option("d", "Clean old data", WHITE)
+            db_choice = input("Choose [a/b/c/d] (or Enter to cancel): ").strip().lower()
+            if db_choice == "a":
+                confirm = input("This will ensure DB schema exists. Continue? [y/N]: ")
+                if confirm.lower().startswith("y"):
+                    init_db()
+            elif db_choice == "b":
+                check_db()
+            elif db_choice == "c":
+                query_db()
+            elif db_choice == "d":
+                days_raw = input("Days window to keep (default 14): ").strip() or "14"
+                try:
+                    days = int(days_raw)
+                except ValueError:
+                    print(style("Invalid number, using 14", YELLOW))
+                    days = 14
+                clean_db(days=days)
+        elif choice == "9":
             run_scheduler_daemon()
         else:
             print(style("Unknown choice", RED, bold=True))
 
 
-def run_single_automation():
-    """Run a one-shot automation pipeline: crawl -> label -> detect topics."""
-    print("\nSingle-run automation: crawl -> label -> topics")
-    crawl_type = input("Crawl type [full|selective] (default full): ").strip() or "full"
-    if crawl_type == "selective":
-        source = input("Source [vnexpress|tuoitre|vietnamnet|all] (default all): ").strip() or "all"
-        category = input("Category (optional): ").strip() or None
-        limit_raw = input("Limit per source/category (default 50): ").strip() or "50"
-        try:
-            limit = int(limit_raw)
-        except ValueError:
-            print("Invalid limit, using 50")
-            limit = 50
-        seed_data(source=source, category=category, limit=limit, db_path=None)
+def run_auto_workflow(
+    launch_dashboard: bool = True,
+    model_version: str = "phobert_v1.0",
+    batch_size: int = 32,
+    topic_hours: int = 24,
+    topic_top_n: int = 10,
+) -> bool:
+    """Run auto workflow: init DB -> crawl if empty -> train if missing -> label -> topics -> optional dashboard."""
+    print_header("Auto Workflow")
+    tail = " -> dashboard" if launch_dashboard else ""
+    print(style(f"Running: init DB -> crawl(if empty) -> train(if missing) -> label -> topics{tail}", DIM))
+
+    # 1) Ensure database schema exists
+    init_result = init_db()
+    if init_result.returncode != 0:
+        print(style("Database initialization failed. Stopping workflow.", RED, bold=True))
+        return False
+
+    # 2) Crawl only when there are no articles
+    existing_articles = get_article_count()
+    if existing_articles <= 0:
+        print(style("No articles found. Starting full crawl...", YELLOW, bold=True))
+        crawl_result = crawl_all()
+        if crawl_result.returncode != 0:
+            print(style("Crawl failed. Stopping workflow.", RED, bold=True))
+            return False
     else:
-        crawl_all()
+        print(style(f"Articles already available ({existing_articles}). Skipping crawl.", GREEN))
 
-    # Labeling
-    print("\nNext: labeling step")
-    model_path = None
-    print("Using auto-detected model path (no manual path input required).")
-    model_version = input("Model version (default phobert_v1.0): ").strip() or "phobert_v1.0"
-    batch_raw = input("Batch size (default 32): ").strip() or "32"
-    show_samples = input("Show sample predictions? [y/N]: ").strip().lower().startswith("y")
-    try:
-        batch_size = int(batch_raw)
-    except ValueError:
-        print("Invalid batch size, using 32")
-        batch_size = 32
-    label_articles(model_path, model_version, batch_size, show_samples)
+    # 3) Train model only when no trained model exists
+    if not train_model_if_needed(output_dir=DEFAULT_MODEL_PATH):
+        print(style("Cannot continue without a trained model.", RED, bold=True))
+        return False
 
-    # Topics detection
-    print("\nNext: detect topics")
-    hours_raw = input("Hours window (default 24): ").strip() or "24"
-    top_n_raw = input("Top topics (default 10): ").strip() or "10"
-    try:
-        hours = int(hours_raw)
-        top_n = int(top_n_raw)
-    except ValueError:
-        print("Invalid numbers, using hours=24, top_n=10")
-        hours, top_n = 24, 10
-    detect_topics(hours=hours, top_n=top_n)
+    # 4) Label articles
+    print(style("Running label step...", CYAN, bold=True))
+    if not label_articles(model_path=None, model_version=model_version, batch_size=batch_size, show_samples=False):
+        print(style("Labeling failed. Stopping workflow.", RED, bold=True))
+        return False
+    labeled_now = get_labeled_article_count()
+    print(style(f"Labeled articles in DB: {labeled_now}", GREEN))
+
+    # 5) Detect hot topics
+    print(style(f"Running topic detection ({topic_hours}h, top {topic_top_n})...", CYAN, bold=True))
+    if not detect_topics(hours=topic_hours, top_n=topic_top_n):
+        print(style("Topic detection failed. Stopping workflow.", RED, bold=True))
+        return False
+
+    # 6) Optionally launch dashboard
+    if launch_dashboard:
+        print(style("Launching Streamlit dashboard...", MAGENTA, bold=True))
+        run_streamlit()
+
+    return True
+
+
+def run_single_automation():
+    """Run menu automation and launch dashboard at the end."""
+    run_auto_workflow(launch_dashboard=True)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Project helper CLI")
     sub = parser.add_subparsers(dest="cmd")
 
-    run_parser = sub.add_parser("run", help="Run Streamlit dashboard on localhost:8501")
-    run_parser.add_argument("--port", type=int, default=8501, help="Port for Streamlit (default 8501)")
+    run_parser = sub.add_parser("run", help="Run Streamlit dashboard (auto port from 8501)")
+    run_parser.add_argument("--port", type=int, default=8501, help="Starting port to try (default 8501)")
 
     initdb_parser = sub.add_parser("initdb", help="Initialize the SQLite DB")
     initdb_parser.add_argument("--db-path", default=None, help="Custom database path")
@@ -416,6 +471,13 @@ def main():
     topics_parser.add_argument("--hours", type=int, default=24)
     topics_parser.add_argument("--top-n", type=int, default=10)
 
+    auto_parser = sub.add_parser("auto", help="Run full auto workflow (crawl/train-if-needed/label/topics)")
+    auto_parser.add_argument("--skip-dashboard", action="store_true", help="Do not launch Streamlit at the end")
+    auto_parser.add_argument("--model-version", default="phobert_v1.0")
+    auto_parser.add_argument("--batch-size", type=int, default=32)
+    auto_parser.add_argument("--hours", type=int, default=24, help="Topic detection timeframe in hours")
+    auto_parser.add_argument("--top-n", type=int, default=10, help="Top N topics")
+
     sub.add_parser("topics-all", help="Detect hot topics for 1h/6h/12h/24h/168h")
     sub.add_parser("scheduler", help="Run hourly scheduler daemon")
     sub.add_parser("db-check", help="Check database health and summary")
@@ -429,7 +491,7 @@ def main():
         if args.cmd is None:
             interactive_menu()
         elif args.cmd == "run":
-            run_streamlit(port=args.port)
+            run_streamlit(start_port=args.port)
         elif args.cmd == "initdb":
             init_db(db_path=args.db_path)
         elif args.cmd == "crawl-all":
@@ -447,6 +509,16 @@ def main():
             )
         elif args.cmd == "topics":
             detect_topics(hours=args.hours, top_n=args.top_n)
+        elif args.cmd == "auto":
+            ok = run_auto_workflow(
+                launch_dashboard=not args.skip_dashboard,
+                model_version=args.model_version,
+                batch_size=args.batch_size,
+                topic_hours=args.hours,
+                topic_top_n=args.top_n,
+            )
+            if not ok:
+                raise SystemExit(1)
         elif args.cmd == "topics-all":
             detect_topics_all_timeframes()
         elif args.cmd == "scheduler":

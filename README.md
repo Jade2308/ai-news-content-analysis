@@ -1,21 +1,24 @@
-# AI News Content Analysis
+# 🗞️ AI News Content Analysis
 
-Vietnamese news crawling, clickbait detection, hot-topic discovery, and dashboard analytics.
+Vietnamese news crawling, clickbait detection, hot-topic discovery, and dashboard analytics in one local-first pipeline. 🚀
 
-Reference paper: https://www.sciencedirect.com/science/article/pii/S2352340925008856
+![Dashboard Preview](preview.png)
 
-## What It Does
-- Crawl Vietnamese news sources.
-- Clean and normalize article text.
-- Predict clickbait labels with transformer models.
-- Detect hot topics from recent articles.
-- Store data in SQLite and visualize with Streamlit.
+## ✨ Highlights
+- Crawl news from multiple Vietnamese sources.
+- Normalize and store article data in SQLite.
+- Label clickbait with a local transformer model (no LLM API).
+- Detect hot topics with BERTopic.
+- Explore everything through a Streamlit dashboard.
 
-## Prerequisites
+## 🧩 Tech Stack
 - Python 3.10+
-- `pip`
+- SQLite
+- Transformers (PhoBERT / other backbones)
+- BERTopic
+- Streamlit
 
-## Setup
+## ⚙️ Setup
 ```bash
 git clone https://github.com/Jade2308/ai-news-content-analysis.git
 cd ai-news-content-analysis
@@ -42,16 +45,16 @@ Initialize database:
 python main.py initdb
 ```
 
-## Quick Run
+## 🚀 Quick Start
 1. Train model once:
 ```bash
 python src/models/train_clickbait.py
 ```
-2. Crawl:
+2. Crawl articles:
 ```bash
 python main.py crawl-all
 ```
-3. Label new articles:
+3. Label unlabeled articles:
 ```bash
 python main.py label
 ```
@@ -63,60 +66,32 @@ python main.py topics --hours 24 --top-n 10
 ```bash
 python main.py run --port 8501
 ```
-Open: `http://localhost:8501`
+Open: `http://127.0.0.1:8501` 🌐
 
-## CLI Commands
+## 🛠️ Main CLI Commands
 ```bash
-# database
-python main.py initdb
-python main.py db-check
-python main.py db-query
-python main.py db-clean --days 14
-
-# crawling
+python main.py run
+python main.py auto
 python main.py crawl-all
 python main.py crawl-hourly
 python main.py seed --source all --limit 50
-
-# labeling and topics
 python main.py label --batch-size 32
 python main.py topics --hours 24 --top-n 10
 python main.py topics-all
-
-# scheduler + dashboard
-python main.py scheduler
-python main.py run --port 8501
+python main.py db-check
+python main.py db-clean --days 14
 ```
 
-## Model Comparison
-Train different backbones:
-```bash
-python src/models/train_clickbait.py --model-name "vinai/phobert-base" --output-dir "results/models/phobert_clickbait"
-python src/models/train_clickbait.py --model-name "uitnlp/visobert" --output-dir "results/models/visobert_clickbait"
-python src/models/train_clickbait.py --model-name "xlm-roberta-base" --output-dir "results/models/xlm_roberta_clickbait"
-```
+## 📌 Notes
+- `results/` is treated as regenerable output and is ignored by git.
+- Topic naming is local keyword-based (no Gemini / no external LLM API).
+- Default DB path is `data/news.db`.
 
-Evaluate:
-```bash
-python src/models/evaluate.py --model-path "results/models/phobert_clickbait" --output-dir "results/evaluation/phobert"
-python src/models/evaluate.py --model-path "results/models/visobert_clickbait" --output-dir "results/evaluation/visobert"
-python src/models/evaluate.py --model-path "results/models/xlm_roberta_clickbait" --output-dir "results/evaluation/xlm_roberta"
-```
+## 🧯 Troubleshooting
+- Missing model: run `python src/models/train_clickbait.py`.
+- Empty metrics: run `crawl-all` then `label`.
+- No topics found: increase `--hours` or ensure enough recent articles.
 
-Create comparison chart:
-```bash
-python src/models/compare_models.py
-```
-
-## Notes
-- Local database defaults to `data/news.db`.
-- Topic naming can use Gemini API if `GEMINI_API_KEY` is set in `.env`.
-- Scheduler runs crawling/topic pipeline hourly.
-
-## Troubleshooting
-- Missing model: run training first or pass `--model-path`.
-- Empty dashboard: run `crawl-all`, then `label`, then `topics`.
-- Slow runtime on small VPS: use CPU-only environment and keep hourly crawl incremental.
-
-## License
-MIT
+## 📚 Reference
+Dataset/paper context:  
+https://www.sciencedirect.com/science/article/pii/S2352340925008856

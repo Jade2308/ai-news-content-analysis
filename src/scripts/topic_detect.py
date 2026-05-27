@@ -8,9 +8,6 @@ import logging
 import os
 import sys
 
-import requests
-from dotenv import load_dotenv
-
 # Ensure project root (parent of `src`) is on sys.path.
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if PROJECT_ROOT not in sys.path:
@@ -18,8 +15,6 @@ if PROJECT_ROOT not in sys.path:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
-
-load_dotenv()
 
 DEFAULT_TIMEFRAMES_CONFIG = {
     1: 3,
@@ -30,44 +25,12 @@ DEFAULT_TIMEFRAMES_CONFIG = {
 }
 
 
-def generate_topic_name_with_gemma(keywords, titles, api_key):
-    url = (
-        "https://generativelanguage.googleapis.com/v1beta/models/"
-        f"gemini-2.5-flash-lite:generateContent?key={api_key}"
-    )
-    prompt = (
-        "Bạn là một biên tập viên báo chí thực hiện đặt tên chủ đề ngắn gọn.\n"
-        "Hãy đọc danh sách từ khóa và tiêu đề nhóm bài báo dưới đây và đặt ra một câu tiêu đề chỉnh chu, "
-        "ngắn gọn (tối đa 10 từ) làm tên chủ đề đại diện.\n"
-        "YÊU CẦU BẮT BUỘC: CHỈ ĐƯA RA KẾT QUẢ CUỐI CÙNG (CÂU TIÊU ĐỀ). KHÔNG ĐƯỢC GIẢI THÍCH, "
-        "KHÔNG PHÂN TÍCH, KHÔNG CHỈ RA CÁC BƯỚC SUY NGHĨ, KHÔNG TRÌNH BÀY CÁC BƯỚC KHỞI TẠO, "
-        "KHÔNG PHÁT SINH BẤT KỲ VĂN BẢN NÀO KHÁC.\n\n"
-        f"Từ khóa: {', '.join(keywords)}\n"
-        f"Tiêu đề nhóm bài:\n{'\n'.join([f'- {t}' for t in titles])}\n\n"
-        "Tên chủ đề ngắn gọn (Chỉ trả về 1 câu duy nhất):"
-    )
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    headers = {"Content-Type": "application/json"}
-    try:
-        resp = requests.post(url, json=payload, headers=headers, timeout=60)
-        if resp.status_code != 200:
-            logger.warning("Gemini API Error [%s]: %s", resp.status_code, resp.text)
-            return None
-
-        data = resp.json()
-        if "candidates" in data and data["candidates"]:
-            parts = data["candidates"][0]["content"]["parts"]
-            answer_parts = [p["text"] for p in parts if not p.get("thought")]
-            answer = "".join(answer_parts).strip()
-            for prefix in ["Tên chủ đề ngắn gọn:", "Tên chủ đề:", "Tiêu đề:"]:
-                if answer.lower().startswith(prefix.lower()):
-                    answer = answer[len(prefix) :].strip()
-            return answer.replace('"', "").replace("*", "")
-
-        logger.warning("Unexpected Gemini response: %s", data)
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Error calling Gemini API: %s", exc)
-    return None
+def build_local_topic_name(keywords: list[str], max_keywords: int = 3) -> str:
+    """Build a concise local-only topic label from top keywords."""
+    cleaned = [str(k).strip() for k in keywords if str(k).strip()]
+    if not cleaned:
+        return "GENERAL NEWS"
+    return " | ".join(cleaned[:max_keywords]).upper()
 
 
 def run_topic_detection(hours: int = 24, top_n: int = 10) -> bool:
@@ -113,24 +76,12 @@ def run_topic_detection(hours: int = 24, top_n: int = 10) -> bool:
         print("\nNo prominent topics found.")
         return False
 
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if api_key:
-        logger.info("GEMINI_API_KEY found. Generating topic names with Gemini.")
-    else:
-        logger.info(
-            "GEMINI_API_KEY not found. Using local keyword-based topic names (no external API)."
-        )
+    logger.info("Using local keyword-based topic names (no external API).")
 
     topics_to_save = []
     for i, ht in enumerate(hot_topics, 1):
         rep_docs = analyzer.topic_model.get_representative_docs(ht["topic_id"])
-        topic_name = " | ".join(ht["keywords"][:3]).upper()
-        titles_for_llm = [text.split(".", 1)[0] for text in rep_docs[:5]] if rep_docs else []
-
-        if api_key and rep_docs:
-            ai_name = generate_topic_name_with_gemma(ht["keywords"], titles_for_llm, api_key)
-            if ai_name:
-                topic_name = ai_name.replace('"', "").replace("*", "").strip()
+        topic_name = build_local_topic_name(ht["keywords"])
 
         article_ids = []
         for idx, topic_id in enumerate(topics):

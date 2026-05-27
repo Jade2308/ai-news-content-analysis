@@ -34,3 +34,6 @@ temp/
 .coverage
 .coverage.*
 htmlcov/
+
+# Regenerable pipeline outputs
+results/

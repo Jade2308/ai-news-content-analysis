@@ -93,8 +93,9 @@ CATEGORY_LABELS_EN = {
 }
 
 # Database functions
+@st.cache_resource(show_spinner=False)
 def ensure_database() -> None:
-	init_db(DB_PATH)
+	init_db(DB_PATH, verbose=False)
 
 @st.cache_data(ttl=300, show_spinner=False)
 def cached_read_sql(query: str, params: Sequence | None = None) -> pd.DataFrame:
