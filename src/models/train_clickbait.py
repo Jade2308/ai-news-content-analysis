@@ -93,7 +93,7 @@ class ClickbaitDataset(Dataset):
 
 def train_phobert(
     csv_path: str,
-    output_dir: str = 'models/phobert_clickbait',
+    output_dir: str = 'results/models/phobert_clickbait',
     epochs: int = 3,
     batch_size: int = 16,
     learning_rate: float = 2e-5,
@@ -308,13 +308,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--csv-path',
         type=str,
-        default=str(ROOT_DIR / 'data' / 'clickbait_dataset_vietnamese.csv'),
+        default=str(ROOT_DIR / 'data' / 'clickbait_vietnamese_dataset.csv'),
         help='Path to dataset CSV file'
     )
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='models/phobert_clickbait',
+        default='results/models/phobert_clickbait',
         help='Directory to save trained model'
     )
     parser.add_argument(

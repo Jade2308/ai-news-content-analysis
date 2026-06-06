@@ -39,12 +39,12 @@ def generate_plots(history_path, output_dir):
 
 if __name__ == "__main__":
     # Đường dẫn file trên máy bạn
-    history_file = "models/phobert_clickbait/training_history.json"
-    save_dir = "results/evaluation_results"
+    history_file = "results/models/phobert_clickbait/training_history.json"
+    save_dir = "results/evaluation"
     
     try:
         generate_plots(history_file, save_dir)
-        print("\n🚀 Hoàn tất! Bạn có thể lấy các file ảnh trong thư mục results/evaluation_results để dán vào báo cáo.")
+        print("\n🚀 Hoàn tất! Bạn có thể lấy các file ảnh trong thư mục results/evaluation để dán vào báo cáo.")
     except Exception as e:
         print(f"❌ Lỗi: {e}")
         print("Đảm bảo bạn đã chạy 'pip install matplotlib' trước khi chạy script này.")

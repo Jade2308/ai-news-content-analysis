@@ -76,8 +76,8 @@ def compare_models(results_dirs, output_path='model_comparison.png'):
 
 if __name__ == '__main__':
     dirs_to_check = [
-        'evaluation_results/phobert',
-        'evaluation_results/visobert',
-        'evaluation_results/xlm_roberta'
+        'results/evaluation/phobert',
+        'results/evaluation/visobert',
+        'results/evaluation/xlm_roberta'
     ]
-    compare_models(dirs_to_check, 'evaluation_results/model_comparison.png')
+    compare_models(dirs_to_check, 'results/evaluation/model_comparison.png')

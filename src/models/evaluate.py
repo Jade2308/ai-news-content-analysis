@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 def evaluate_model(
     model_path: str,
     csv_path: str,
-    output_dir: str = 'evaluation_results',
+    output_dir: str = 'results/evaluation',
     test_size: float = 0.2,
     seed: int = 42
 ):
@@ -271,19 +271,19 @@ if __name__ == '__main__':
     parser.add_argument(
         '--model-path',
         type=str,
-        default='models/phobert_clickbait',
+        default='results/models/phobert_clickbait',
         help='Path to fine-tuned model'
     )
     parser.add_argument(
         '--csv-path',
         type=str,
-        default='data/clickbait_dataset_vietnamese.csv',
+        default='data/clickbait_vietnamese_dataset.csv',
         help='Path to dataset CSV file'
     )
     parser.add_argument(
         '--output-dir',
         type=str,
-        default='evaluation_results',
+        default='results/evaluation',
         help='Directory to save evaluation results'
     )
     

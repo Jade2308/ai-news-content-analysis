@@ -1,11 +1,6 @@
-import os
 import logging
 from typing import List, Dict, Any, Tuple
 
-from bertopic import BERTopic
-from sentence_transformers import SentenceTransformer
-from umap import UMAP
-from hdbscan import HDBSCAN
 from sklearn.feature_extraction.text import CountVectorizer
 
 logger = logging.getLogger(__name__)
@@ -16,6 +11,18 @@ class TopicAnalyzer:
         Initialize the BERTopic model specifically tuned for Vietnamese text.
         """
         try:
+            try:
+                from bertopic import BERTopic
+                from sentence_transformers import SentenceTransformer
+                from umap import UMAP
+                from hdbscan import HDBSCAN
+                from bertopic.representation import KeyBERTInspired
+            except ModuleNotFoundError as exc:
+                raise ModuleNotFoundError(
+                    "Missing optional topic modeling dependencies. Install: "
+                    "bertopic sentence-transformers umap-learn hdbscan"
+                ) from exc
+
             logger.info(f"Loading embedding model: {embedding_model}")
             self.embedding_model = SentenceTransformer(embedding_model)
             
@@ -32,7 +39,6 @@ class TopicAnalyzer:
             
             # Clustering model: Quá trình test cho thấy KMeans ép chùm quá to. 
             # Ta quay lại HDBSCAN và khai báo cực chặt: Chỉ gom nếu có tối thiểu 5 bài cực giống nhau
-            from hdbscan import HDBSCAN
             self.hdbscan_model = HDBSCAN(
                 min_cluster_size=5, 
                 min_samples=2,
@@ -58,7 +64,6 @@ class TopicAnalyzer:
             )
             
             # 3. Sử dụng mô hình KeyBERTInspired giúp chắt lọc từ khóa sát nghĩa với nội dung cả cụm bài nhất
-            from bertopic.representation import KeyBERTInspired
             self.representation_model = KeyBERTInspired()
             
             self.topic_model = BERTopic(

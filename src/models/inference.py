@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 def main():
     """Test PhoBERT model on sample Vietnamese titles."""
     
-    model_path = 'models/phobert_clickbait'
+    model_path = 'results/models/phobert_clickbait'
     
     # Check if model exists
     if not Path(model_path).exists():
