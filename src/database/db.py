@@ -160,14 +160,15 @@ def get_all_articles(limit: int = 1000, db_path: str = DB_PATH) -> list:
 
 
 def get_articles_by_timerange(hours: int = 24, db_path: str = DB_PATH) -> list:
-    """Return articles crawled within the last *hours* hours."""
+    """Return articles crawled within the last *hours* hours (VN timezone)."""
     conn = get_connection(db_path)
     cursor = conn.cursor()
+    threshold_str = (datetime.now(_VN_TZ) - timedelta(hours=hours)).strftime('%Y-%m-%d %H:%M:%S')
     cursor.execute('''
     SELECT * FROM articles
-    WHERE crawled_at > datetime('now', '-' || ? || ' hours')
+    WHERE crawled_at > ?
     ORDER BY crawled_at DESC
-    ''', [hours])
+    ''', [threshold_str])
     columns = [d[0] for d in cursor.description]
     articles = [dict(zip(columns, row)) for row in cursor.fetchall()]
     conn.close()
