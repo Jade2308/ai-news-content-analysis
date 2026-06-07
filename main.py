@@ -550,7 +550,5 @@ def main():
         print()
         print(style("Input closed. Bye.", GREEN, bold=True))
 
-
 if __name__ == "__main__":
     main()
-
