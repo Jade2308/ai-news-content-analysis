@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-scripts/init_db.py – Khởi tạo cơ sở dữ liệu SQLite cho news-mining.
+Initialize the SQLite database for the news-mining pipeline.
 
-Cách dùng:
-    python scripts/init_db.py
-    python scripts/init_db.py --db-path /path/to/custom.db
+Usage:
+    python src/scripts/db_init.py
+    python src/scripts/db_init.py --db-path /path/to/custom.db
 """
 import argparse
 import os
@@ -21,12 +21,12 @@ from src.database.schema import init_db
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Khởi tạo SQLite database cho news-mining.'
+        description='Initialize the SQLite database for news mining.'
     )
     parser.add_argument(
         '--db-path',
         default=DB_PATH,
-        help=f'Đường dẫn tới file DB (mặc định: {DB_PATH})',
+        help=f'Path to the database file. Default: {DB_PATH}',
     )
     args = parser.parse_args()
 

@@ -1,4 +1,4 @@
-"""Training script for PhoBERT clickbait classifier"""
+﻿"""Training script for PhoBERT clickbait classifier"""
 import torch
 import pandas as pd
 import logging
@@ -117,7 +117,7 @@ def train_phobert(
     np.random.seed(seed)
     
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    logger.info(f"🚀 Starting training on {device}")
+    logger.info(f" Starting training on {device}")
     
     model_name = "vinai/phobert-base"
     
@@ -130,12 +130,12 @@ def train_phobert(
         ]
         csv_file = next((candidate for candidate in candidates if candidate.exists()), csv_file)
 
-    logger.info(f"📂 Loading dataset from {csv_file}")
+    logger.info(f" Loading dataset from {csv_file}")
     df = pd.read_csv(csv_file)
     logger.info(f"   Total samples: {len(df)}")
     
     texts = df['title'].tolist()
-    # Map labels: clickbait → 1, non-clickbait → 0
+    # Map labels: clickbait  1, non-clickbait  0
     labels = [1 if str(label).lower().strip() == 'clickbait' else 0 
               for label in df['label']]
     
@@ -148,10 +148,10 @@ def train_phobert(
         texts, labels, test_size=val_split, random_state=seed, stratify=labels
     )
     
-    logger.info(f"📊 Train/Val split: {len(train_texts)}/{len(val_texts)}")
+    logger.info(f" Train/Val split: {len(train_texts)}/{len(val_texts)}")
     
     # Load model and tokenizer
-    logger.info(f"🤖 Loading model: {model_name}")
+    logger.info(f" Loading model: {model_name}")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = load_sequence_classifier(model_name, num_labels=2)
     model.to(device)
@@ -182,12 +182,12 @@ def train_phobert(
     }
     
     # Training loop
-    logger.info(f"🏋️  Starting training for {epochs} epochs")
+    logger.info(f"  Starting training for {epochs} epochs")
     logger.info(f"   Batch size: {batch_size}, Learning rate: {learning_rate}")
     logger.info("="*70)
     
     for epoch in range(epochs):
-        logger.info(f"\n📌 Epoch {epoch + 1}/{epochs}")
+        logger.info(f"\n Epoch {epoch + 1}/{epochs}")
         
         # Training phase
         model.train()
@@ -267,7 +267,7 @@ def train_phobert(
             Path(output_dir).mkdir(parents=True, exist_ok=True)
             model.save_pretrained(output_dir)
             tokenizer.save_pretrained(output_dir)
-            logger.info(f"   ✨ New best model saved (F1: {f1:.4f})")
+            logger.info(f"    New best model saved (F1: {f1:.4f})")
         
         # Print classification report
         logger.info("\n   Classification Report:")
@@ -287,11 +287,11 @@ def train_phobert(
     history_path = Path(output_dir) / 'training_history.json'
     with open(history_path, 'w') as f:
         json.dump(training_history, f, indent=2)
-    logger.info(f"✅ Training history saved to {history_path}")
+    logger.info(f" Training history saved to {history_path}")
     
     # Final summary
     logger.info("\n" + "="*70)
-    logger.info("🎉 Training completed!")
+    logger.info(" Training completed!")
     logger.info(f"   Best F1 score: {best_f1:.4f}")
     logger.info(f"   Model saved to: {output_dir}")
     logger.info("="*70)

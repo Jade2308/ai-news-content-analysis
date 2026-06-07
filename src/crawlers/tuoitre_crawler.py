@@ -1,14 +1,16 @@
+import logging
 import re
 import time
-import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from .base_crawler import BaseCrawler
-from src.core.utils import normalize_text, parse_time
+
+from src.core.clean_text import clean_text, extract_text_from_html
 from src.core.types import Article
-from src.core.clean_text import extract_text_from_html, clean_text
+from src.core.utils import normalize_text, parse_time
+
+from .base_crawler import BaseCrawler
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ _LISTING_BLACKLIST = [
     '/tag/', '/tim-kiem.htm', '/rss.htm',
 ]
 
-# Article URLs on Tuổi Trẻ usually end with a long numeric ID before .htm,
+# Tuoi Tre article URLs usually end with a long numeric ID before .htm,
 # e.g. "ten-bai-2026031813171468.htm". Avoid section pages like "...-360.htm".
 _ARTICLE_URL_RE = re.compile(r'-\d{7,}\.htm$')
 
@@ -30,7 +32,6 @@ class TuoitreCrawler(BaseCrawler):
         super().__init__('tuoitre', category)
         self.base_url = 'https://tuoitre.vn'
 
-        # Mapping category chuẩn hóa -> URL thực tế của Tuổi Trẻ
         self.category_urls = {
             'thoi-su': 'https://tuoitre.vn/thoi-su.htm',
             'the-gioi': 'https://tuoitre.vn/the-gioi.htm',
@@ -43,14 +44,14 @@ class TuoitreCrawler(BaseCrawler):
             'giai-tri': 'https://tuoitre.vn/giai-tri.htm',
             'the-thao': 'https://tuoitre.vn/the-thao.htm',
             'giao-duc': 'https://tuoitre.vn/giao-duc.htm',
-            'nha-đat': 'https://tuoitre.vn/nha-dat.htm',
+            'nha-dat': 'https://tuoitre.vn/nha-dat.htm',
             'suc-khoe': 'https://tuoitre.vn/suc-khoe.htm',
             'gia-that': 'https://tuoitre.vn/gia-that.htm',
-            'ban-đoc': 'https://tuoitre.vn/ban-doc.htm',
+            'ban-doc': 'https://tuoitre.vn/ban-doc.htm',
         }
 
     def fetch_listing(self):
-        """Lấy danh sách URL bài từ trang chuyên mục Tuổi Trẻ."""
+        """Return article URLs from a Tuoi Tre category page."""
         url = self.category_urls.get(self.category, self.base_url)
         logger.info(f"Fetching listing from {url}")
 
@@ -73,8 +74,6 @@ class TuoitreCrawler(BaseCrawler):
             urls = []
             seen = set()
 
-            blacklist = _LISTING_BLACKLIST
-
             for a in candidate_links:
                 href = a.get('href', '').strip()
                 if not href:
@@ -86,9 +85,8 @@ class TuoitreCrawler(BaseCrawler):
                     continue
                 if '.htm' not in full_url:
                     continue
-                if any(x in full_url for x in blacklist):
+                if any(x in full_url for x in _LISTING_BLACKLIST):
                     continue
-                # Only accept real article URLs (end with -<digits>.htm)
                 if not _ARTICLE_URL_RE.search(full_url):
                     continue
                 if full_url in seen:
@@ -108,7 +106,7 @@ class TuoitreCrawler(BaseCrawler):
             return []
 
     def parse_article(self, url):
-        """Parse 1 bài từ Tuổi Trẻ và trả về Article theo schema chuẩn."""
+        """Parse one Tuoi Tre article into the unified Article schema."""
         time.sleep(0.5)
 
         try:
@@ -117,30 +115,25 @@ class TuoitreCrawler(BaseCrawler):
             html = r.text
             soup = BeautifulSoup(r.content, 'html.parser')
 
-            # --- Title (required) ---
             title_elem = soup.select_one('h1.detail-title, h1.article-title, h1')
             title = normalize_text(title_elem.get_text()) if title_elem else ''
             if not title:
                 logger.warning(f"No title found for {url}, skipping")
                 return None
 
-            # --- Summary / sapo ---
             summary_elem = soup.select_one(
                 'h2.detail-sapo, p.detail-sapo, p.sapo, p.article__summary'
             )
             summary = normalize_text(summary_elem.get_text()) if summary_elem else ''
 
-            # --- Author ---
             author_elem = soup.select_one(
                 'div.author-info strong, p.author-name, span.author'
             )
             author = normalize_text(author_elem.get_text()) if author_elem else None
 
-            # --- Tags ---
             tag_elems = soup.select('ul.tags a, div.tags a, a.tag-item')
             tags = [normalize_text(t.get_text()) for t in tag_elems if t.get_text(strip=True)]
 
-            # --- Content ---
             content_elem = soup.select_one(
                 'div.detail-content, div#main-detail-body, div.article__content'
             )
@@ -151,7 +144,6 @@ class TuoitreCrawler(BaseCrawler):
             )
             content_text = clean_text(content_text)
 
-            # --- Published time ---
             published_at = None
 
             meta_time_elem = soup.select_one(
@@ -168,14 +160,12 @@ class TuoitreCrawler(BaseCrawler):
                     'span.article__time, time[datetime]'
                 )
                 if time_elem:
-                    # Prefer machine-readable datetime attribute
                     dt_attr = time_elem.get('datetime')
                     if dt_attr:
                         published_at = parse_time(dt_attr)
                     else:
                         published_at = parse_time(normalize_text(time_elem.get_text()))
 
-            # --- Crawled at ---
             crawled_at = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
 
             return Article(
@@ -199,20 +189,20 @@ class TuoitreCrawler(BaseCrawler):
 
 if __name__ == '__main__':
     crawler_instance = TuoitreCrawler()
-    
+
     total_articles = []
     for category_slug in crawler_instance.category_urls.keys():
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Crawling category: {category_slug}")
-        logger.info(f"{'='*60}")
-        
+        logger.info(f"{'=' * 60}")
+
         crawler_instance.category = category_slug
         articles = crawler_instance.run()
         total_articles.extend(articles)
         time.sleep(2)
-    
-    logger.info(f"\n{'='*60}")
+
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"Total articles crawled: {len(total_articles)}")
-    logger.info(f"Saving to database...")
+    logger.info("Saving to database...")
     crawler_instance.save_to_database(total_articles)
-    logger.info(f"✅ Done!")
+    logger.info("Done!")

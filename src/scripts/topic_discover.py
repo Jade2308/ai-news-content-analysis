@@ -44,7 +44,7 @@ BLACKLIST_TEXT_KEYWORDS = {
 
 
 def strip_accents(text: str) -> str:
-    text = text.replace("đ", "d").replace("Đ", "D")
+    text = text.replace("\u0111", "d").replace("\u0110", "D")
     text = unicodedata.normalize("NFD", text)
     return "".join(ch for ch in text if unicodedata.category(ch) != "Mn")
 
@@ -97,7 +97,7 @@ def _is_top_level_category(site_name: str, url: str) -> bool:
     if site_name == "baomoi":
         if len(segments) != 1 or not segments[0].endswith(".epi"):
             return False
-        # loại link bài/tag/chủ đề theo id của Baomoi
+        # Exclude Baomoi article, tag, and topic links with numeric IDs.
         if re.search(r"-c\d+\.epi$", low) or re.search(r"-t\d+\.epi$", low):
             return False
         return True
@@ -129,7 +129,6 @@ def is_valid_category_candidate(site_name: str, base_url: str, text: str, url: s
     if low.rstrip("/") == base_url.rstrip("/"):
         return False
 
-    # loại bớt link không có path meaningful
     if urlparse(low).path.strip("/") == "":
         return False
 
@@ -137,7 +136,7 @@ def is_valid_category_candidate(site_name: str, base_url: str, text: str, url: s
         return False
 
     if site_name == "baomoi":
-        # Chỉ giữ chuyên mục tin, bỏ nhóm tiện ích/phụ
+        # Keep only news category pages and exclude utility sections.
         if not low.endswith(".epi"):
             return False
         if any(x in low for x in ["/tien-ich", "top", "trang"]):
@@ -164,7 +163,7 @@ def fetch_menu_links(site_name: str, base_url: str) -> dict:
         if is_valid_category_candidate(site_name, base_url, text, url):
             candidates.append((text, url))
 
-    # fallback nếu menu selectors không bắt đủ
+    # Fallback when menu selectors do not capture enough category links.
     if len(candidates) < 6:
         for a in soup.select("a[href]"):
             text = " ".join(a.get_text(" ", strip=True).split())
@@ -175,7 +174,7 @@ def fetch_menu_links(site_name: str, base_url: str) -> dict:
             if is_valid_category_candidate(site_name, base_url, text, url):
                 candidates.append((text, url))
 
-    # dedupe theo URL, giữ text đầu tiên
+    # Deduplicate by URL and keep the first observed label.
     by_url = {}
     for text, url in candidates:
         if url not in by_url:

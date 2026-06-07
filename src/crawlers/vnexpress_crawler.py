@@ -1,15 +1,15 @@
 # crawlers/vnexpress_crawler.py
-import time
 import logging
-from datetime import datetime, timezone, timedelta
+import time
+from datetime import datetime, timedelta, timezone
 
-import requests
 from bs4 import BeautifulSoup
 
-from .base_crawler import BaseCrawler
-from src.core.utils import normalize_text, parse_time
+from src.core.clean_text import clean_text, extract_text_from_html
 from src.core.types import Article
-from src.core.clean_text import extract_text_from_html, clean_text
+from src.core.utils import normalize_text, parse_time
+
+from .base_crawler import BaseCrawler
 
 logger = logging.getLogger(__name__)
 
@@ -21,20 +21,19 @@ class VNExpressCrawler(BaseCrawler):
         super().__init__('vnexpress', category)
         self.base_url = 'https://vnexpress.net'
 
-        # Mapping category chuẩn hóa -> URL thực tế của VNExpress
         self.category_urls = {
             'vne-go': 'https://vnexpress.net/vne-go',
             'thoi-su': 'https://vnexpress.net/thoi-su',
             'the-gioi': 'https://vnexpress.net/the-gioi',
             'khoa-hoc-cong-nghe': 'https://vnexpress.net/khoa-hoc-cong-nghe',
             'goc-nhin': 'https://vnexpress.net/goc-nhin',
-            'bat-đong-san': 'https://vnexpress.net/bat-dong-san',
+            'bat-dong-san': 'https://vnexpress.net/bat-dong-san',
             'suc-khoe': 'https://vnexpress.net/suc-khoe',
             'the-thao': 'https://vnexpress.net/the-thao',
             'giai-tri': 'https://vnexpress.net/giai-tri',
             'phap-luat': 'https://vnexpress.net/phap-luat',
             'giao-duc': 'https://vnexpress.net/giao-duc',
-            'đoi-song': 'https://vnexpress.net/doi-song',
+            'doi-song': 'https://vnexpress.net/doi-song',
             'xe': 'https://vnexpress.net/oto-xe-may',
             'du-lich': 'https://vnexpress.net/du-lich',
             'y-kien': 'https://vnexpress.net/y-kien',
@@ -43,7 +42,7 @@ class VNExpressCrawler(BaseCrawler):
         }
 
     def fetch_listing(self):
-        """Lấy danh sách URL từ trang chuyên mục."""
+        """Return article URLs from a VNExpress category page."""
         url = self.category_urls.get(self.category, f'{self.base_url}/{self.category}')
         logger.info(f"Fetching listing from {url}")
 
@@ -71,8 +70,8 @@ class VNExpressCrawler(BaseCrawler):
             return []
 
     def parse_article(self, url):
-        """Parse 1 bài VNExpress và trả về Article theo schema chuẩn."""
-        time.sleep(1)  # rate-limit
+        """Parse one VNExpress article into the unified Article schema."""
+        time.sleep(1)
 
         try:
             r = self.session.get(url, timeout=15)
@@ -80,26 +79,21 @@ class VNExpressCrawler(BaseCrawler):
             html = r.text
             soup = BeautifulSoup(r.content, 'html.parser')
 
-            # --- Title (required) ---
             title_elem = soup.select_one('h1.title-detail')
             title = normalize_text(title_elem.get_text()) if title_elem else ''
             if not title:
                 logger.warning(f"No title found for {url}, skipping")
                 return None
 
-            # --- Summary ---
             summary_elem = soup.select_one('p.description')
             summary = normalize_text(summary_elem.get_text()) if summary_elem else ''
 
-            # --- Author ---
             author_elem = soup.select_one('p.author_mail strong, p.author strong, span.author')
             author = normalize_text(author_elem.get_text()) if author_elem else None
 
-            # --- Tags ---
             tag_elems = soup.select('ul.list-tag a, div.tags a')
             tags = [normalize_text(t.get_text()) for t in tag_elems if t.get_text(strip=True)]
 
-            # --- Content ---
             content_elem = soup.select_one('article.fck_detail, article')
             content_html_raw = str(content_elem) if content_elem else ''
             content_text = extract_text_from_html(
@@ -108,13 +102,11 @@ class VNExpressCrawler(BaseCrawler):
             )
             content_text = clean_text(content_text)
 
-            # --- Published time ---
             time_elem = soup.select_one('span.date')
             published_at = None
             if time_elem:
                 published_at = parse_time(normalize_text(time_elem.get_text()))
 
-            # --- Crawled at ---
             crawled_at = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
 
             return Article(
@@ -138,20 +130,20 @@ class VNExpressCrawler(BaseCrawler):
 
 if __name__ == '__main__':
     crawler_instance = VNExpressCrawler()
-    
+
     total_articles = []
     for category_slug in crawler_instance.category_urls.keys():
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Crawling category: {category_slug}")
-        logger.info(f"{'='*60}")
-        
+        logger.info(f"{'=' * 60}")
+
         crawler_instance.category = category_slug
         articles = crawler_instance.run()
         total_articles.extend(articles)
         time.sleep(2)
-    
-    logger.info(f"\n{'='*60}")
+
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"Total articles crawled: {len(total_articles)}")
-    logger.info(f"Saving to database...")
+    logger.info("Saving to database...")
     crawler_instance.save_to_database(total_articles)
-    logger.info(f"✅ Done!")
+    logger.info("Done!")

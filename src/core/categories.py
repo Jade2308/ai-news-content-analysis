@@ -1,125 +1,124 @@
 # src/core/categories.py
 """
 Standard category mapping and normalization logic.
-This unifies category classifications from different newspapers (VnExpress, Tuoi Tre, VietnamNet)
-into a unified taxonomy for the user interface and system queries.
+
+This unifies category classifications from different newspapers into one
+taxonomy for the dashboard and query filters.
 """
 
-# Map of raw category slug -> Unified category ID
+# Map raw category slugs to unified category IDs.
 CATEGORY_MAP = {
-    # Thời sự - Chính trị
+    # Current affairs and politics
     'thoi-su': 'thoi-su',
     'chinh-tri': 'thoi-su',
     'tuan-viet-nam': 'thoi-su',
     'net-zero': 'thoi-su',
     'vne-go': 'thoi-su',
-    
-    # Thế giới
+
+    # World
     'the-gioi': 'the-gioi',
-    
-    # Kinh doanh - Bất động sản
-    'bat-đong-san': 'kinh-doanh-bds',
+
+    # Business and real estate
     'bat-dong-san': 'kinh-doanh-bds',
-    'nha-đat': 'kinh-doanh-bds',
     'nha-dat': 'kinh-doanh-bds',
     'gia-that': 'kinh-doanh-bds',
-    
-    # Pháp luật
+
+    # Law
     'phap-luat': 'phap-luat',
-    
-    # Khoa học - Công nghệ
+
+    # Science and technology
     'khoa-hoc-cong-nghe': 'khoa-hoc-cong-nghe',
     'cong-nghe': 'khoa-hoc-cong-nghe',
-    
-    # Thể thao
+
+    # Sports
     'the-thao': 'the-thao',
-    
-    # Giải trí - Văn hóa
+    'bong-da': 'the-thao',
+
+    # Entertainment and culture
     'giai-tri': 'giai-tri-van-hoa',
     'van-hoa': 'giai-tri-van-hoa',
     'thu-gian': 'giai-tri-van-hoa',
-    
-    # Giáo dục
+
+    # Education
     'giao-duc': 'giao-duc',
-    
-    # Sức khỏe
+
+    # Health
     'suc-khoe': 'suc-khoe',
-    
-    # Du lịch
+
+    # Travel
     'du-lich': 'du-lich',
-    
-    # Xe
+
+    # Automotive
     'xe': 'xe',
-    
-    # Đời sống - Bạn đọc
-    'đoi-song': 'doi-song-ban-doc',
+
+    # Lifestyle and readers
     'doi-song': 'doi-song-ban-doc',
     'nhip-song-tre': 'doi-song-ban-doc',
     'tam-su': 'doi-song-ban-doc',
-    'ban-đoc': 'doi-song-ban-doc',
     'ban-doc': 'doi-song-ban-doc',
     'goc-nhin': 'doi-song-ban-doc',
     'y-kien': 'doi-song-ban-doc',
 }
 
-# Unified categories configuration
+
 UNIFIED_CATEGORIES = {
     'thoi-su': {
-        'label': 'Thời sự - Chính trị',
-        'icon': '📰',
+        'label': 'Current Affairs & Politics',
+        'icon': '',
     },
     'the-gioi': {
-        'label': 'Thế giới',
-        'icon': '🌐',
+        'label': 'World',
+        'icon': '',
     },
     'kinh-doanh-bds': {
-        'label': 'Kinh doanh & Bất động sản',
-        'icon': '🏢',
+        'label': 'Business & Real Estate',
+        'icon': '',
     },
     'phap-luat': {
-        'label': 'Pháp luật',
-        'icon': '⚖️',
+        'label': 'Law',
+        'icon': '',
     },
     'khoa-hoc-cong-nghe': {
-        'label': 'Khoa học & Công nghệ',
-        'icon': '💻',
+        'label': 'Science & Technology',
+        'icon': '',
     },
     'the-thao': {
-        'label': 'Thể thao',
-        'icon': '⚽',
+        'label': 'Sports',
+        'icon': '',
     },
     'giai-tri-van-hoa': {
-        'label': 'Giải trí & Văn hóa',
-        'icon': '🎭',
+        'label': 'Entertainment & Culture',
+        'icon': '',
     },
     'giao-duc': {
-        'label': 'Giáo dục',
-        'icon': '🎓',
+        'label': 'Education',
+        'icon': '',
     },
     'suc-khoe': {
-        'label': 'Sức khỏe',
-        'icon': '🏥',
+        'label': 'Health',
+        'icon': '',
     },
     'doi-song-ban-doc': {
-        'label': 'Đời sống & Bạn đọc',
-        'icon': '👥',
+        'label': 'Lifestyle & Readers',
+        'icon': '',
     },
     'du-lich': {
-        'label': 'Du lịch',
-        'icon': '✈️',
+        'label': 'Travel',
+        'icon': '',
     },
     'xe': {
-        'label': 'Xe',
-        'icon': '🚗',
+        'label': 'Automotive',
+        'icon': '',
     },
     'khac': {
-        'label': 'Khác',
-        'icon': '📂',
-    }
+        'label': 'Other',
+        'icon': '',
+    },
 }
 
+
 def get_unified_category(raw_category: str) -> str:
-    """Trả về ID category thống nhất từ category thô."""
+    """Return the unified category ID for a raw category slug."""
     if not raw_category:
         return 'khac'
     raw_clean = str(raw_category).strip().lower()
@@ -129,18 +128,19 @@ def get_unified_category(raw_category: str) -> str:
 
 
 def get_category_display_name(category_id: str) -> str:
-    """Trả về tên hiển thị (Tiếng Việt) của category thống nhất."""
-    return UNIFIED_CATEGORIES.get(category_id, {}).get('label', 'Khác')
+    """Return the English display name for a unified category."""
+    return UNIFIED_CATEGORIES.get(category_id, {}).get('label', 'Other')
+
 
 def get_category_icon(category_id: str) -> str:
-    """Trả về icon đại diện của category thống nhất."""
-    return UNIFIED_CATEGORIES.get(category_id, {}).get('icon', '📂')
+    """Return an optional category icon prefix."""
+    return UNIFIED_CATEGORIES.get(category_id, {}).get('icon', '')
+
 
 def get_raw_categories_for_unified(unified_id: str) -> list[str]:
-    """Trả về danh sách các category thô tương ứng với category thống nhất."""
+    """Return raw category slugs that map to a unified category."""
     if unified_id == 'khac':
         return []
-    # Khởi tạo với chính ID thống nhất
     cats = [unified_id]
     for raw, mapped in CATEGORY_MAP.items():
         if mapped == unified_id and raw != unified_id:

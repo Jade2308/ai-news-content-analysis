@@ -81,9 +81,9 @@ def insert_article(data: dict, db_path: str = DB_PATH) -> str:
     Insert an article into the DB.
 
     Returns:
-        'inserted'   – new row was created
-        'dup_url'    – URL already exists
-        'dup_fp'     – different URL but same fingerprint (content duplicate)
+        'inserted'   - new row was created
+        'dup_url'    - URL already exists
+        'dup_fp'     - different URL but same fingerprint (content duplicate)
     """
     conn = get_connection(db_path)
     cursor = conn.cursor()
@@ -186,9 +186,7 @@ def count_articles(db_path: str = DB_PATH) -> int:
 
 
 def save_hot_topics(topics_data: list, timeframe_hours: Optional[int] = None, db_path: str = DB_PATH):
-    """
-    Lưu các chủ đề hot vừa phát hiện vào DB.
-    """
+    """Save newly detected hot topics to the database."""
     conn = get_connection(db_path)
     cursor = conn.cursor()
     now_str = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
@@ -211,7 +209,7 @@ def save_hot_topics(topics_data: list, timeframe_hours: Optional[int] = None, db
                     pass
         
         conn.commit()
-        logger.info(f"✅ Successfully saved {len(topics_data)} hot topics to Database.")
+        logger.info(f"Successfully saved {len(topics_data)} hot topics to database.")
     except Exception as e:
         conn.rollback()
         logger.error(f"Failed to save hot topics: {e}")
@@ -220,10 +218,7 @@ def save_hot_topics(topics_data: list, timeframe_hours: Optional[int] = None, db
 
 
 def get_latest_hot_topics(timeframe_hours: int, db_path: str = DB_PATH) -> list:
-    """
-    Lấy danh sách các chủ đề hot nhất của lần chạy gần nhất cho một mốc thời gian.
-    Dùng cho Dashboard.
-    """
+    """Return hot topics from the latest run for one timeframe."""
     conn = get_connection(db_path)
     cursor = conn.cursor()
     
@@ -250,10 +245,10 @@ def get_latest_hot_topics(timeframe_hours: int, db_path: str = DB_PATH) -> list:
 
 def clean_old_data(days: int = 14, db_path: str = DB_PATH) -> Tuple[int, int, int]:
     """
-    Xóa dữ liệu cũ trong database news.db:
-    1. Giữ lại articles trong `days` ngày gần đây (dựa trên crawled_at).
-    2. Giữ lại hot_topics trong `days` ngày gần đây (dựa trên created_at).
-    3. Xóa các bản ghi trong topic_articles có topic_id không tồn tại trong hot_topics hoặc article_id không có trong articles.
+    Delete old data from the database:
+    1. Keep articles from the last `days` days based on crawled_at.
+    2. Keep hot_topics from the last `days` days based on created_at.
+    3. Delete orphaned topic_articles rows.
     """
     conn = get_connection(db_path)
     cursor = conn.cursor()
@@ -262,31 +257,31 @@ def clean_old_data(days: int = 14, db_path: str = DB_PATH) -> Tuple[int, int, in
     threshold_str = threshold_dt.strftime('%Y-%m-%d %H:%M:%S')
     
     try:
-        # 1. Xóa articles cũ
+        # 1. Delete old articles.
         cursor.execute("DELETE FROM articles WHERE crawled_at < ?", (threshold_str,))
         deleted_articles = cursor.rowcount
         
-        # 2. Xóa hot_topics cũ
+        # 2. Delete old hot topics.
         cursor.execute("DELETE FROM hot_topics WHERE created_at < ?", (threshold_str,))
         deleted_topics = cursor.rowcount
         
-        # 3. Xóa các bản ghi trong topic_articles mồ côi
+        # 3. Delete orphaned topic_articles rows.
         cursor.execute("DELETE FROM topic_articles WHERE topic_id NOT IN (SELECT id FROM hot_topics)")
         deleted_topic_articles = cursor.rowcount
         
-        # Xóa thêm các bản ghi liên kết tới article không tồn tại
+        # Also delete links to missing articles.
         cursor.execute("DELETE FROM topic_articles WHERE article_id NOT IN (SELECT article_id FROM articles)")
         deleted_topic_articles += cursor.rowcount
         
         conn.commit()
-        logger.info(f"🧹 Cleaned database (older than {days} days): "
+        logger.info(f"Cleaned database (older than {days} days): "
                     f"Deleted {deleted_articles} articles, "
                     f"{deleted_topics} hot_topics, "
                     f"{deleted_topic_articles} topic_articles entries.")
         return deleted_articles, deleted_topics, deleted_topic_articles
     except Exception as e:
         conn.rollback()
-        logger.error(f"❌ Failed to clean database: {e}")
+        logger.error(f"Failed to clean database: {e}")
         raise e
     finally:
         conn.close()

@@ -339,7 +339,7 @@ def render_dashboard_hero(date_label: str, mode_label: str, total_articles: int,
 	return f"""
 	<div class="dashboard-hero">
 		<div class="dashboard-brand">
-			<div class="dashboard-kicker">AI News Analysis System · Live Dashboard</div>
+			<div class="dashboard-kicker">AI News Analysis System - Live Dashboard</div>
 			<h1 class="dashboard-title">VnNew<span style="color: var(--accent);">AI</span></h1>
 			<p class="dashboard-subtitle">Smart newsroom interface for clickbait detection, hot-topic monitoring, and Vietnamese news analysis.</p>
 		</div>

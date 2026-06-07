@@ -1,5 +1,5 @@
 """
-core/types.py – Unified Article schema for news-mining.
+core/types.py - Unified Article schema for news-mining.
 
 Every crawler must return a dict that conforms to this schema (or an Article
 dataclass instance, which can be converted to a dict with asdict()).

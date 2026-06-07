@@ -15,4 +15,3 @@ umap-learn
 hdbscan
 matplotlib
 huggingface-hub
-accelerate

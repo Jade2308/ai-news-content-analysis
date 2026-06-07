@@ -14,7 +14,7 @@ from typing import Sequence
 import pandas as pd
 import streamlit as st
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
 	sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -72,9 +72,9 @@ LABEL_OPTIONS = [
 	UNLABELED_OPTION,
 ]
 
-NAV_OVERVIEW = "📊 Overview"
-NAV_ARTICLES = "📰 Article Explorer"
-NAV_TOPICS = "🔥 Hot Topics"
+NAV_OVERVIEW = "Overview"
+NAV_ARTICLES = "Article Explorer"
+NAV_TOPICS = "Hot Topics"
 
 CATEGORY_LABELS_EN = {
 	"thoi-su": "Current Affairs & Politics",
@@ -139,7 +139,7 @@ def normalize_category_label(category: str) -> str:
 	unified_id = get_unified_category(value)
 	icon = get_category_icon(unified_id)
 	label = CATEGORY_LABELS_EN.get(unified_id, "Other")
-	return f"{icon} {label}"
+	return f"{icon} {label}".strip()
 
 def resolve_local_model_path() -> str | None:
 	def is_trained_model_dir(path: Path) -> bool:
@@ -438,10 +438,10 @@ def inject_styles():
 def get_badge_html(label, score):
 	"""Get badge HTML based on label"""
 	if label == "clickbait":
-		text = "⚠️ Clickbait"
+		text = "Clickbait"
 		badge_class = "badge-clickbait"
 	elif label == "non-clickbait":
-		text = "✓ Verified"
+		text = "Verified"
 		badge_class = "badge-safe"
 	else:
 		text = "? Unlabeled"
@@ -456,13 +456,13 @@ def render_article_detail(article_id):
 
 	if not article:
 		st.error("Article not found.")
-		if st.button("← Back"):
+		if st.button("Back"):
 			st.session_state.selected_article_id = None
 			clear_query_params()
 			st.rerun()
 		return
 
-	if st.button("← Back to list", key="back_to_list_btn"):
+	if st.button("Back to list", key="back_to_list_btn"):
 		st.session_state.selected_article_id = None
 		clear_query_params()
 		st.rerun()
@@ -484,13 +484,13 @@ def render_article_detail(article_id):
 
 	badge_html = get_badge_html(label, score)
 	content_html = html.escape(content_text).replace("\n", "<br>") if content_text else "No full article content available."
-	url_html = f'<div class="article-detail-url">🔗 <a href="{html.escape(url)}" target="_blank" rel="noopener noreferrer">Open original article</a></div>' if url else ""
+	url_html = f'<div class="article-detail-url"><a href="{html.escape(url)}" target="_blank" rel="noopener noreferrer">Open original article</a></div>' if url else ""
 
 	st.markdown(
 		f"""
 		<div class="detail-shell" style="margin-top: 15px;">
 			<div class="article-detail">
-				<div class="article-detail-meta"><b>{source}</b> · {category} · {published_at or crawled_at}</div>
+				<div class="article-detail-meta"><b>{source}</b> - {category} - {published_at or crawled_at}</div>
 				<h2 style="margin: 0 0 15px 0; font-size: clamp(24px, 2.5vw, 36px); line-height: 1.25; color: var(--text); font-weight: 800;">{title}</h2>
 				<div style="margin-bottom: 15px;">{badge_html}</div>
 				<div style="background: rgba(57, 166, 255, 0.10); padding: 15px; border-radius: var(--radius-md); border-left: 4px solid var(--accent); margin-bottom: 20px; border: 1px solid var(--panel-border);">
@@ -510,7 +510,7 @@ def render_topic_detail(topic_id: int):
 	topic = get_hot_topic_by_id(topic_id)
 	if not topic:
 		st.error("Topic not found.")
-		if st.button("← Back"):
+		if st.button("Back"):
 			st.session_state.selected_topic_id = None
 			st.session_state.current_view = "home"
 			st.rerun()
@@ -518,7 +518,7 @@ def render_topic_detail(topic_id: int):
 
 	articles_df = get_articles_by_topic_id(topic_id)
 
-	if st.button("← Back to topics", key="back_to_topics_btn"):
+	if st.button("Back to topics", key="back_to_topics_btn"):
 		st.session_state.selected_topic_id = None
 		st.session_state.current_view = "home"
 		clear_query_params()
@@ -528,7 +528,7 @@ def render_topic_detail(topic_id: int):
 		f"""
 		<div class="topic-shell" style="margin-top: 15px;">
 			<div class="article-detail" style="padding: 20px;">
-				<div class="article-detail-meta"><b>Hot Topic</b> · Timeframe {html.escape(str(topic.get('timeframe') or ''))}h · Snapshot {html.escape(str(topic.get('created_at') or ''))}</div>
+				<div class="article-detail-meta"><b>Hot Topic</b> - Timeframe {html.escape(str(topic.get('timeframe') or ''))}h - Snapshot {html.escape(str(topic.get('created_at') or ''))}</div>
 				<h2 style="margin: 0 0 10px 0; font-size: clamp(24px, 2.5vw, 36px); color: var(--accent); font-weight: 800;">{html.escape(str(topic.get('topic_name') or ''))}</h2>
 				<div style="font-size: 14px; color: var(--muted-strong); margin-top: 8px;"><b>Top keywords:</b> {html.escape(str(topic.get('keywords') or ''))}</div>
 			</div>
@@ -555,7 +555,7 @@ def render_topic_detail(topic_id: int):
 			f"""
 			<a href="?article_id={article_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
 				<div class="detail-card" style="margin-bottom: 12px; background: var(--panel); border: 1px solid var(--panel-border); padding: 15px; border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
-					<div class="detail-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">{source} · {published_at}</div>
+					<div class="detail-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;">{source} - {published_at}</div>
 					<div class="topic-card-title" style="font-size: 16px; font-weight: 700; margin-top: 5px; color: var(--text);">{title}</div>
 					<div class="topic-card-summary" style="font-size: 13.5px; color: var(--muted-strong); margin-top: 8px; line-height: 1.5;">{summary}</div>
 					<div style="margin-top: 10px;">{badge}</div>
@@ -599,7 +599,7 @@ def main():
 	if "navigation_page" not in st.session_state:
 		st.session_state.navigation_page = NAV_OVERVIEW
 	if "last_page" not in st.session_state:
-		st.session_state.last_page = "📊 Tổng Quan"
+		st.session_state.last_page = NAV_OVERVIEW
 	if "from_query_param" not in st.session_state:
 		st.session_state.from_query_param = False
 
@@ -615,7 +615,7 @@ def main():
 			topic_id_int = int(qp_topic_id)
 			st.session_state.selected_topic_id = topic_id_int
 			st.session_state.current_view = "topic_detail"
-			st.session_state.navigation_page = "🔥 Chủ Đề Nóng"
+			st.session_state.navigation_page = NAV_TOPICS
 			st.session_state.from_query_param = True
 		except (ValueError, TypeError):
 			pass
@@ -776,7 +776,7 @@ def main():
 						<a href="?topic_id={topic_id}" target="_self" style="text-decoration: none; color: inherit; display: block;">
 							<div class="topic-card" style="margin-bottom: 12px; background: var(--panel); padding: 15px; border: 1px solid var(--panel-border); border-radius: var(--radius-md); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 								<div class="topic-card-title" style="font-size: 15px; font-weight: 700; color: var(--accent);">{topic_name}</div>
-								<div class="topic-card-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 5px; text-transform: uppercase;">🔥 {article_count} articles</div>
+								<div class="topic-card-meta" style="font-size: 11px; font-weight: 700; color: var(--muted); margin-top: 5px; text-transform: uppercase;">{article_count} articles</div>
 								<div style="font-size: 12.5px; color: var(--muted-strong); margin-top: 6px; line-height: 1.4;"><b>Keywords:</b> {keywords}</div>
 							</div>
 						</a>
@@ -789,7 +789,7 @@ def main():
 		st.markdown("<h2 class='dashboard-title'>Article Explorer</h2>", unsafe_allow_html=True)
 		st.markdown("<p class='dashboard-subtitle'>Filter news by timeframe, source, category, and clickbait prediction labels.</p>", unsafe_allow_html=True)
 		
-		search_query = st.text_input("🔍 Search in title or summary", placeholder="Enter keyword...", key="exp_search_query")
+		search_query = st.text_input("Search in title or summary", placeholder="Enter keyword...", key="exp_search_query")
 		
 		# Filters Panel
 		col_f1, col_f2, col_f3, col_f4 = st.columns(4)
@@ -815,7 +815,9 @@ def main():
 			def format_category_option(cat_id: str) -> str:
 				if cat_id == ALL_OPTION:
 					return ALL_OPTION
-				return f"{get_category_icon(cat_id)} {CATEGORY_LABELS_EN.get(cat_id, 'Other')}"
+				icon = get_category_icon(cat_id)
+				label = CATEGORY_LABELS_EN.get(cat_id, "Other")
+				return f"{icon} {label}".strip()
 
 			category_filter = st.selectbox(
 				"Category",
@@ -839,8 +841,8 @@ def main():
 		if search_query.strip():
 			q = search_query.strip().lower()
 			mask = (
-				articles_df["title"].fillna("").str.lower().str.contains(q)
-				| articles_df["summary"].fillna("").str.lower().str.contains(q)
+				articles_df["title"].fillna("").str.lower().str.contains(q, regex=False)
+				| articles_df["summary"].fillna("").str.lower().str.contains(q, regex=False)
 			)
 			articles_df = articles_df[mask]
 			
@@ -855,7 +857,7 @@ def main():
 		st.markdown("<h2 class='dashboard-title'>Trending News Topics</h2>", unsafe_allow_html=True)
 		st.markdown("<p class='dashboard-subtitle'>Automatic topic clustering over recent articles to surface major events.</p>", unsafe_allow_html=True)
 		
-		topic_search_query = st.text_input("🔍 Search by topic name or keyword", placeholder="Enter topic name or keyword...", key="ht_search_query")
+		topic_search_query = st.text_input("Search by topic name or keyword", placeholder="Enter topic name or keyword...", key="ht_search_query")
 		
 		col_ht1, col_ht2 = st.columns(2)
 		with col_ht1:
@@ -880,8 +882,8 @@ def main():
 		if topic_search_query.strip():
 			q = topic_search_query.strip().lower()
 			mask = (
-				hot_topics_feed["topic_name"].fillna("").str.lower().str.contains(q)
-				| hot_topics_feed["keywords"].fillna("").str.lower().str.contains(q)
+				hot_topics_feed["topic_name"].fillna("").str.lower().str.contains(q, regex=False)
+				| hot_topics_feed["keywords"].fillna("").str.lower().str.contains(q, regex=False)
 			)
 			hot_topics_feed = hot_topics_feed[mask]
 			
@@ -905,7 +907,7 @@ def main():
 						<div class="topic-card" style="margin-bottom: 15px; padding: 20px; background: var(--panel); border: 1px solid var(--panel-border); border-radius: var(--radius-lg); transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; cursor: pointer;">
 							<div style="display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 10px;">
 								<div class="topic-card-title" style="font-size: 18px; color: var(--accent); font-weight: 800;">{title}</div>
-								<span class="featured-badge badge-safe" style="font-size: 12px; font-weight: 700; background: rgba(79,70,229,0.08); color: var(--accent); border: 1px solid rgba(79,70,229,0.2);">🔥 {article_count} articles</span>
+								<span class="featured-badge badge-safe" style="font-size: 12px; font-weight: 700; background: rgba(79,70,229,0.08); color: var(--accent); border: 1px solid rgba(79,70,229,0.2);">{article_count} articles</span>
 							</div>
 							<div class="topic-card-summary" style="margin-top: 10px; font-size: 14px; color: var(--text);">
 								<strong>Top keywords:</strong> <span style="background: rgba(57, 166, 255, 0.10); padding: 2px 8px; border-radius: 4px; font-weight: 600; color: var(--muted-strong); border: 1px solid var(--panel-border);">{keywords}</span>

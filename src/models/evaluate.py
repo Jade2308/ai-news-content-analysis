@@ -1,4 +1,4 @@
-"""Evaluation script for PhoBERT clickbait classifier"""
+﻿"""Evaluation script for PhoBERT clickbait classifier"""
 import torch
 import pandas as pd
 import logging
@@ -51,7 +51,7 @@ def evaluate_model(
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     # Load dataset
-    logger.info(f"📂 Loading dataset from {csv_path}")
+    logger.info(f" Loading dataset from {csv_path}")
     df = pd.read_csv(csv_path)
     
     texts = df['title'].tolist()
@@ -63,16 +63,16 @@ def evaluate_model(
         texts, labels, test_size=test_size, random_state=seed, stratify=labels
     )
     
-    logger.info(f"📊 Test set size: {len(test_texts)}")
+    logger.info(f" Test set size: {len(test_texts)}")
     logger.info(f"   Clickbait: {sum(test_labels)}")
     logger.info(f"   Non-clickbait: {len(test_labels) - sum(test_labels)}")
     
     # Load model
-    logger.info(f"🤖 Loading model from {model_path}")
+    logger.info(f" Loading model from {model_path}")
     model = PhoBERTClickbaitClassifier(model_name=model_path)
     
     # Predict on test set
-    logger.info("🔮 Making predictions...")
+    logger.info(" Making predictions...")
     predictions = []
     probabilities_clickbait = []
     
@@ -85,7 +85,7 @@ def evaluate_model(
         probabilities_clickbait.append(probs[1])  # Probability of clickbait
     
     # Calculate metrics
-    logger.info("\n📈 Calculating metrics...")
+    logger.info("\n Calculating metrics...")
     
     precision, recall, f1, support = precision_recall_fscore_support(
         test_labels, predictions, average=None
@@ -113,25 +113,25 @@ def evaluate_model(
     
     # Log results
     logger.info("\n" + "="*70)
-    logger.info("📊 EVALUATION RESULTS")
+    logger.info(" EVALUATION RESULTS")
     logger.info("="*70)
     
-    logger.info("\n🔹 Per-class metrics:")
+    logger.info("\n Per-class metrics:")
     logger.info(f"   Non-clickbait - Precision: {precision[0]:.4f}, Recall: {recall[0]:.4f}, F1: {f1[0]:.4f}")
     logger.info(f"   Clickbait     - Precision: {precision[1]:.4f}, Recall: {recall[1]:.4f}, F1: {f1[1]:.4f}")
     
-    logger.info("\n🔹 Weighted metrics:")
+    logger.info("\n Weighted metrics:")
     logger.info(f"   Precision: {precision_weighted:.4f}")
     logger.info(f"   Recall: {recall_weighted:.4f}")
     logger.info(f"   F1-score: {f1_weighted:.4f}")
     
-    logger.info("\n🔹 Other metrics:")
+    logger.info("\n Other metrics:")
     logger.info(f"   Sensitivity (True Positive Rate): {sensitivity:.4f}")
     logger.info(f"   Specificity (True Negative Rate): {specificity:.4f}")
     if roc_auc:
         logger.info(f"   ROC-AUC: {roc_auc:.4f}")
     
-    logger.info("\n🔹 Confusion Matrix:")
+    logger.info("\n Confusion Matrix:")
     logger.info(f"   [[TN={tn:4d}  FP={fp:4d}]  (Predicted Negative)")
     logger.info(f"    [FN={fn:4d}  TP={tp:4d}]]  (Predicted Positive)")
     
@@ -183,7 +183,7 @@ def evaluate_model(
     results_path = Path(output_dir) / 'evaluation_results.json'
     with open(results_path, 'w', encoding='utf-8') as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
-    logger.info(f"\n✅ Results saved to {results_path}")
+    logger.info(f"\n Results saved to {results_path}")
     
     # Plot confusion matrix
     try:
@@ -233,7 +233,7 @@ def _plot_confusion_matrix(cm, output_dir):
     
     plot_path = Path(output_dir) / 'confusion_matrix.png'
     plt.savefig(plot_path, dpi=150, bbox_inches='tight')
-    logger.info(f"✅ Confusion matrix saved to {plot_path}")
+    logger.info(f" Confusion matrix saved to {plot_path}")
     plt.close()
 
 
@@ -258,7 +258,7 @@ def _plot_roc_curve(y_true, y_probs, roc_auc, output_dir):
     
     plot_path = Path(output_dir) / 'roc_curve.png'
     plt.savefig(plot_path, dpi=150, bbox_inches='tight')
-    logger.info(f"✅ ROC curve saved to {plot_path}")
+    logger.info(f" ROC curve saved to {plot_path}")
     plt.close()
 
 

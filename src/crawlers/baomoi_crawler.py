@@ -1,14 +1,16 @@
+import logging
 import re
 import time
-import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
-from .base_crawler import BaseCrawler
-from src.core.utils import normalize_text, parse_time
+
+from src.core.clean_text import clean_text, extract_text_from_html
 from src.core.types import Article
-from src.core.clean_text import extract_text_from_html, clean_text
+from src.core.utils import normalize_text, parse_time
+
+from .base_crawler import BaseCrawler
 
 logger = logging.getLogger(__name__)
 
@@ -17,16 +19,15 @@ _ARTICLE_URL_RE = re.compile(r'-c\d+\.epi$')
 
 
 class BaomoiCrawler(BaseCrawler):
-    """Crawler cho baomoi.com"""
-    
+    """Crawler for baomoi.com."""
+
     def __init__(self, category='trang-chu'):
         super().__init__('baomoi', category)
         self.base_url = 'https://www.baomoi.com'
-        
-        # Mapping category -> URL
+
         self.category_urls = {
             'trang-chu': 'https://www.baomoi.com',
-            'bong-đa': 'https://www.baomoi.com/bong-da.epi',
+            'bong-da': 'https://www.baomoi.com/bong-da.epi',
             'the-gioi': 'https://www.baomoi.com/the-gioi.epi',
             'xa-hoi': 'https://www.baomoi.com/xa-hoi.epi',
             'van-hoa': 'https://www.baomoi.com/van-hoa.epi',
@@ -41,77 +42,72 @@ class BaomoiCrawler(BaseCrawler):
             'xe-co': 'https://www.baomoi.com/xe-co.epi',
             'nha-dat': 'https://www.baomoi.com/nha-dat.epi',
         }
+
     def fetch_listing(self):
-        """Lấy danh sách URL bài từ baomoi.com"""
+        """Return article URLs from a Baomoi category page."""
         url = self.category_urls.get(self.category) or self.category_urls.get('trang-chu') or self.base_url
         logger.info(f"Fetching listing from {url}")
-        
+
         try:
             r = self.session.get(url, timeout=15)
             r.raise_for_status()
             soup = BeautifulSoup(r.content, 'html.parser')
-            
+
             urls = []
             seen = set()
 
-            # Baomoi hiện dùng slug bài viết dạng: ...-c54849004.epi
-            # Duyệt tất cả anchor rồi lọc theo pattern bài viết thực
             article_links = soup.select('a[href]')
 
             blacklist_patterns = [
                 '/tag/', '/tim-kiem', '/video', '/photo', '/comment',
-                '/tin-video', '/tin-anh', '/chu-de', '/livescore', '/top'
+                '/tin-video', '/tin-anh', '/chu-de', '/livescore', '/top',
             ]
 
             for a in article_links:
                 href = a.get('href', '').strip()
                 if not href:
                     continue
-                
-                # Xử lý URL tương đối
+
                 full_url = urljoin(self.base_url, href)
-                
-                # Kiểm tra xem có phải URL hợp lệ không
+
                 if not full_url.startswith(self.base_url):
                     continue
-                
-                # Loại bỏ các URL không phải bài viết
+
                 if any(pattern in full_url for pattern in blacklist_patterns):
                     continue
 
-                # Chỉ nhận bài viết thật sự
                 if not _ARTICLE_URL_RE.search(full_url):
                     continue
-                
-                # Loại bỏ URL trùng lặp
+
                 if full_url in seen:
                     continue
-                
-                # Loại bỏ URL quảng cáo hoặc trang chính
+
                 if full_url.endswith(('.jpg', '.png', '.gif', '.css', '.js')):
                     continue
-                
+
                 seen.add(full_url)
                 urls.append(full_url)
-                
+
                 if len(urls) >= 50:
                     break
-            
+
             logger.info(f"Found {len(urls)} article URLs")
             return urls
-            
+
         except Exception as e:
             logger.error(f"Error fetching listing: {e}", exc_info=True)
             return []
-    
+
     def parse_article(self, url):
-        """Parse chi tiết một bài viết từ baomoi.com"""
+        """Parse one Baomoi article into the unified Article schema."""
+        time.sleep(1)
+
         try:
             r = self.session.get(url, timeout=15)
             r.raise_for_status()
+            html = r.text
             soup = BeautifulSoup(r.content, 'html.parser')
-            
-            # Lấy tiêu đề
+
             title = None
             title_selectors = [
                 'h1.title-detail',
@@ -119,7 +115,7 @@ class BaomoiCrawler(BaseCrawler):
                 'h1',
                 'meta[property="og:title"]',
             ]
-            
+
             for sel in title_selectors:
                 if sel.startswith('meta'):
                     meta = soup.select_one(sel)
@@ -131,33 +127,31 @@ class BaomoiCrawler(BaseCrawler):
                     if elem:
                         title = elem.get_text(strip=True)
                         break
-            
+
             if not title:
                 logger.warning(f"Could not find title for {url}")
                 return None
-            
-            # Lấy mô tả ngắn
-            description = None
-            desc_selectors = [
+
+            summary = None
+            summary_selectors = [
                 'meta[property="og:description"]',
                 'meta[name="description"]',
                 'p.description',
                 'p.lead',
                 '.article-description',
             ]
-            
-            for sel in desc_selectors:
+
+            for sel in summary_selectors:
                 elem = soup.select_one(sel)
                 if elem:
                     if sel.startswith('meta'):
-                        description = elem.get('content', '').strip()
+                        summary = elem.get('content', '').strip()
                     else:
-                        description = elem.get_text(strip=True)
-                    if description:
+                        summary = elem.get_text(strip=True)
+                    if summary:
                         break
-            
-            # Lấy nội dung bài viết
-            content = None
+
+            content_html_raw = None
             content_selectors = [
                 'div.detail-content',
                 'div.article-content',
@@ -165,27 +159,25 @@ class BaomoiCrawler(BaseCrawler):
                 'article',
                 '.news-detail-content',
             ]
-            
+
             for sel in content_selectors:
                 elem = soup.select_one(sel)
                 if elem:
-                    content = elem.decode_contents()
+                    content_html_raw = str(elem)
                     break
-            
-            if not content:
+
+            if not content_html_raw:
                 logger.warning(f"Could not find content for {url}")
                 return None
-            
-            # Trích xuất text từ HTML
-            text_content = extract_text_from_html(content)
-            text_content = clean_text(text_content)
-            
-            if not text_content:
+
+            content_text = extract_text_from_html(content_html_raw or html)
+            content_text = clean_text(content_text)
+
+            if not content_text:
                 logger.warning(f"No text content extracted for {url}")
                 return None
-            
-            # Lấy thời gian đăng
-            publish_time = None
+
+            published_at = None
             time_selectors = [
                 'span.publish-time',
                 'span.time-publish',
@@ -194,8 +186,9 @@ class BaomoiCrawler(BaseCrawler):
                 '.article-time',
                 '.publish-time',
             ]
-            
+
             for sel in time_selectors:
+                time_str = None
                 if sel.startswith('meta'):
                     elem = soup.select_one(sel)
                     if elem:
@@ -203,19 +196,14 @@ class BaomoiCrawler(BaseCrawler):
                 else:
                     elem = soup.select_one(sel)
                     if elem:
-                        time_str = elem.get_text(strip=True) if not sel.startswith('time') else elem.get('datetime', '')
-                
+                        time_str = elem.get('datetime', '') if sel == 'time' else elem.get_text(strip=True)
+
                 if time_str:
                     parsed = parse_time(time_str)
                     if parsed:
-                        publish_time = parsed
+                        published_at = parsed
                         break
-            
-            # Nếu không tìm được, dùng thời gian hiện tại
-            if not publish_time:
-                publish_time = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
-            
-            # Lấy tác giả
+
             author = None
             author_selectors = [
                 'span.author-name',
@@ -223,7 +211,7 @@ class BaomoiCrawler(BaseCrawler):
                 '.article-author',
                 'meta[name="author"]',
             ]
-            
+
             for sel in author_selectors:
                 if sel.startswith('meta'):
                     elem = soup.select_one(sel)
@@ -235,46 +223,44 @@ class BaomoiCrawler(BaseCrawler):
                         author = elem.get_text(strip=True)
                 if author:
                     break
-            
-            # Tạo object Article
-            article = Article(
+
+            crawled_at = datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
+
+            return Article(
+                url=url,
                 source=self.source,
                 category=self.category,
                 title=normalize_text(title),
-                description=normalize_text(description) if description else '',
-                content=text_content,
-                author=author or 'Unknown',
-                publish_time=publish_time,
-                url=url,
-                crawl_time=datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S'),
-            )
-            
-            return article
-            
+                summary=normalize_text(summary) if summary else None,
+                content_text=content_text,
+                author=author or None,
+                tags=[],
+                published_at=published_at,
+                crawled_at=crawled_at,
+                content_html_raw=content_html_raw,
+            ).to_dict()
+
         except Exception as e:
             logger.error(f"Error parsing article {url}: {e}", exc_info=True)
             return None
 
 
 if __name__ == '__main__':
-    # Test crawler - crawl tất cả chuyên mục
     crawler = BaomoiCrawler()
-    
+
     total_articles = []
     for category_slug in crawler.category_urls.keys():
-        logger.info(f"\n{'='*60}")
+        logger.info(f"\n{'=' * 60}")
         logger.info(f"Crawling category: {category_slug}")
-        logger.info(f"{'='*60}")
-        
+        logger.info(f"{'=' * 60}")
+
         crawler.category = category_slug
         articles = crawler.run()
         total_articles.extend(articles)
-        time.sleep(2)  # Delay giữa các chuyên mục
-    
-    # Lưu vào database
-    logger.info(f"\n{'='*60}")
-    logger.info(f"Total articles crawled: {len(total_articles)}")
-    logger.info(f"Saving to database...")
-    crawler.save_to_database(total_articles)
-    logger.info(f"✅ Done!")
+        time.sleep(2)
 
+    logger.info(f"\n{'=' * 60}")
+    logger.info(f"Total articles crawled: {len(total_articles)}")
+    logger.info("Saving to database...")
+    crawler.save_to_database(total_articles)
+    logger.info("Done!")

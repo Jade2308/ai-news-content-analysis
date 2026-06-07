@@ -1,4 +1,4 @@
-"""PhoBERT-based Clickbait Classifier"""
+﻿"""PhoBERT-based Clickbait Classifier"""
 import torch
 import logging
 from typing import Dict, List, Tuple
@@ -43,8 +43,8 @@ class PhoBERTClickbaitClassifier:
             device: 'cuda', 'cpu', or None (auto-detect)
         """
         self.device = device or ('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info(f"📱 Loading model: {model_name}")
-        logger.info(f"📍 Device: {self.device}")
+        logger.info(f" Loading model: {model_name}")
+        logger.info(f" Device: {self.device}")
         model_source = model_name
         tokenizer_source = model_name
 
@@ -77,7 +77,7 @@ class PhoBERTClickbaitClassifier:
         
         self.model.to(self.device)
         self.model.eval()
-        logger.info(f"✅ Model loaded successfully")
+        logger.info(f" Model loaded successfully")
     
     def predict(self, text: str, return_probs: bool = False) -> Tuple[int, float]:
         """Predict clickbait label and confidence score.
@@ -167,7 +167,7 @@ class PhoBERTClickbaitClassifier:
         Path(save_path).mkdir(parents=True, exist_ok=True)
         self.model.save_pretrained(save_path)
         self.tokenizer.save_pretrained(save_path)
-        logger.info(f"✅ Model saved to {save_path}")
+        logger.info(f" Model saved to {save_path}")
     
     def load(self, model_path: str) -> None:
         """Load fine-tuned model and tokenizer.
@@ -187,4 +187,4 @@ class PhoBERTClickbaitClassifier:
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_source)
         self.model.to(self.device)
         self.model.eval()
-        logger.info(f"✅ Model loaded from {model_path}")
+        logger.info(f" Model loaded from {model_path}")
