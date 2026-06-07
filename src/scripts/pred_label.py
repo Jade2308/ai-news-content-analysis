@@ -68,7 +68,7 @@ def run_labeling(
         classifier = PhoBERTClickbaitClassifier(model_name=model_path)
     except Exception as e:
         logger.error(f"Cannot load model: {e}")
-        return
+        return False
 
     logger.info("Fetching unpredicted articles...")
     articles = get_unpredicted_articles()
@@ -86,7 +86,7 @@ def run_labeling(
 
         if show_samples:
             show_sample_predictions(limit=10)
-        return
+        return True
 
     logger.info(f"Found {len(articles)} articles to predict")
 
@@ -154,6 +154,7 @@ def run_labeling(
 
     logger.info(f"Saved in this run: {total_predicted}")
     logger.info("Done!")
+    return True
 
 
 def main():
@@ -182,12 +183,13 @@ def main():
 
     args = parser.parse_args()
 
-    run_labeling(
+    ok = run_labeling(
         model_path=args.model_path,
         model_version=args.model_version,
         batch_size=args.batch_size,
         show_samples=args.show_samples,
     )
+    raise SystemExit(0 if ok else 1)
 
 
 def show_sample_predictions(limit: int = 10):

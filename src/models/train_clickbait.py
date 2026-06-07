@@ -98,7 +98,8 @@ def train_phobert(
     batch_size: int = 16,
     learning_rate: float = 2e-5,
     val_split: float = 0.2,
-    seed: int = 42
+    seed: int = 42,
+    max_samples: int | None = None,
 ):
     """Fine-tune PhoBERT on Vietnamese clickbait dataset.
     
@@ -132,6 +133,13 @@ def train_phobert(
 
     logger.info(f" Loading dataset from {csv_file}")
     df = pd.read_csv(csv_file)
+    if max_samples is not None and max_samples > 0 and max_samples < len(df):
+        per_label = max(1, max_samples // max(1, df['label'].nunique()))
+        sampled_frames = [
+            group.sample(n=min(len(group), per_label), random_state=seed)
+            for _, group in df.groupby('label')
+        ]
+        df = pd.concat(sampled_frames).sample(frac=1, random_state=seed).reset_index(drop=True)
     logger.info(f"   Total samples: {len(df)}")
     
     texts = df['title'].tolist()
@@ -172,7 +180,7 @@ def train_phobert(
         num_training_steps=total_steps
     )
     
-    best_f1 = 0
+    best_f1 = -1.0
     training_history = {
         'train_loss': [],
         'val_loss': [],
@@ -347,6 +355,12 @@ if __name__ == '__main__':
         default=42,
         help='Random seed for reproducibility'
     )
+    parser.add_argument(
+        '--max-samples',
+        type=int,
+        default=None,
+        help='Optional balanced sample cap for quick smoke-test training'
+    )
     
     args = parser.parse_args()
     
@@ -357,5 +371,6 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
         val_split=args.val_split,
-        seed=args.seed
+        seed=args.seed,
+        max_samples=args.max_samples,
     )

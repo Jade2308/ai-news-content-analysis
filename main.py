@@ -205,8 +205,13 @@ def init_db(db_path: str | None = None):
     return run_python_script("db_init.py", args)
 
 
-def crawl_all():
-    return run_python_script("crawl.py", ["--mode", "full"])
+def crawl_all(max_articles: int | None = None, no_label: bool = False):
+    args = ["--mode", "full"]
+    if max_articles is not None:
+        args.extend(["--max-articles", str(max_articles)])
+    if no_label:
+        args.append("--no-label")
+    return run_python_script("crawl.py", args)
 
 
 def crawl_hourly():
@@ -387,6 +392,7 @@ def run_auto_workflow(
     batch_size: int = 32,
     topic_hours: int = 24,
     topic_top_n: int = 10,
+    crawl_limit: int | None = None,
 ) -> bool:
     """Run auto workflow: init DB -> crawl if empty -> train if missing -> label -> topics -> optional dashboard."""
     print_header("Auto Workflow")
@@ -403,7 +409,7 @@ def run_auto_workflow(
     existing_articles = get_article_count()
     if existing_articles <= 0:
         print(style("No articles found. Starting full crawl...", YELLOW, bold=True))
-        crawl_result = crawl_all()
+        crawl_result = crawl_all(max_articles=crawl_limit, no_label=True)
         if crawl_result.returncode != 0:
             print(style("Crawl failed. Stopping workflow.", RED, bold=True))
             return False
@@ -452,7 +458,9 @@ def main():
     initdb_parser = sub.add_parser("initdb", help="Initialize the SQLite DB")
     initdb_parser.add_argument("--db-path", default=None, help="Custom database path")
 
-    sub.add_parser("crawl-all", help="Full crawl across all configured newspapers and categories")
+    crawl_all_parser = sub.add_parser("crawl-all", help="Full crawl across all configured newspapers and categories")
+    crawl_all_parser.add_argument("--max-articles", type=int, default=None, help="Optional article cap per category")
+    crawl_all_parser.add_argument("--no-label", action="store_true", help="Skip auto labeling after crawl")
     sub.add_parser("crawl-hourly", help="Incremental hourly crawl for new articles")
 
     seed_parser = sub.add_parser("seed", help="Selective crawl by source/category")
@@ -477,6 +485,7 @@ def main():
     auto_parser.add_argument("--batch-size", type=int, default=32)
     auto_parser.add_argument("--hours", type=int, default=24, help="Topic detection timeframe in hours")
     auto_parser.add_argument("--top-n", type=int, default=10, help="Top N topics")
+    auto_parser.add_argument("--crawl-limit", type=int, default=None, help="Optional article cap per category when DB is empty")
 
     sub.add_parser("topics-all", help="Detect hot topics for 1h/6h/12h/24h/168h")
     sub.add_parser("scheduler", help="Run hourly scheduler daemon")
@@ -495,20 +504,22 @@ def main():
         elif args.cmd == "initdb":
             init_db(db_path=args.db_path)
         elif args.cmd == "crawl-all":
-            crawl_all()
+            crawl_all(max_articles=args.max_articles, no_label=args.no_label)
         elif args.cmd == "crawl-hourly":
             crawl_hourly()
         elif args.cmd == "seed":
             seed_data(source=args.source, category=args.category, limit=args.limit, db_path=args.db_path)
         elif args.cmd == "label":
-            label_articles(
+            if not label_articles(
                 model_path=args.model_path,
                 model_version=args.model_version,
                 batch_size=args.batch_size,
                 show_samples=args.show_samples,
-            )
+            ):
+                raise SystemExit(1)
         elif args.cmd == "topics":
-            detect_topics(hours=args.hours, top_n=args.top_n)
+            if not detect_topics(hours=args.hours, top_n=args.top_n):
+                raise SystemExit(1)
         elif args.cmd == "auto":
             ok = run_auto_workflow(
                 launch_dashboard=not args.skip_dashboard,
@@ -516,6 +527,7 @@ def main():
                 batch_size=args.batch_size,
                 topic_hours=args.hours,
                 topic_top_n=args.top_n,
+                crawl_limit=args.crawl_limit,
             )
             if not ok:
                 raise SystemExit(1)

@@ -17,6 +17,25 @@ _CLICKBAIT_MODEL = None
 _CLICKBAIT_MODEL_DISABLED = False
 
 
+def _has_model_weights(model_dir: str) -> bool:
+    """Return True when a local Hugging Face model directory has weight files."""
+    weight_files = (
+        "model.safetensors",
+        "pytorch_model.bin",
+        "tf_model.h5",
+        "flax_model.msgpack",
+    )
+    if any(os.path.isfile(os.path.join(model_dir, filename)) for filename in weight_files):
+        return True
+    if any(name.endswith(".index.json") for name in os.listdir(model_dir)):
+        return True
+    if any(name.startswith("model-") and name.endswith(".safetensors") for name in os.listdir(model_dir)):
+        return True
+    if any(name.startswith("pytorch_model-") and name.endswith(".bin") for name in os.listdir(model_dir)):
+        return True
+    return False
+
+
 def _get_clickbait_model():
     """Lazy-load PhoBERT model for clickbait detection.
 
@@ -29,8 +48,20 @@ def _get_clickbait_model():
     if _CLICKBAIT_MODEL is not None:
         return _CLICKBAIT_MODEL
 
-    model_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'models', 'phobert_clickbait')
-    if not os.path.isdir(model_dir):
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    model_candidates = [
+        os.path.join(project_root, 'results', 'models', 'phobert_clickbait'),
+        os.path.join(project_root, 'models', 'phobert_clickbait'),
+    ]
+    model_dir = next(
+        (
+            candidate
+            for candidate in model_candidates
+            if os.path.isdir(candidate) and _has_model_weights(candidate)
+        ),
+        None,
+    )
+    if model_dir is None:
         _CLICKBAIT_MODEL_DISABLED = True
         logger.info("PhoBERT model not found at results/models/phobert_clickbait. Skip clickbait detection.")
         return None
@@ -115,6 +146,10 @@ def insert_article(data: dict, db_path: str = DB_PATH) -> str:
             if cursor.fetchone():
                 return 'dup_fp'
 
+        tags = data.get('tags')
+        if isinstance(tags, list):
+            tags = ','.join(str(tag) for tag in tags)
+
         # crawled_at is always set by the crawler at crawl time; fallback is a
         # safety net in case insert is called with incomplete data.
         crawled_at = data.get('crawled_at') or datetime.now(_VN_TZ).strftime('%Y-%m-%d %H:%M:%S')
@@ -134,7 +169,7 @@ def insert_article(data: dict, db_path: str = DB_PATH) -> str:
             data.get('summary'),
             data.get('content_text'),
             data.get('author'),
-            data.get('tags'),
+            tags,
             data.get('published_at'),
             crawled_at,
             data.get('content_html_raw'),

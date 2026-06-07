@@ -26,8 +26,8 @@ def main() -> None:
     parser.add_argument(
         "--max-articles",
         type=int,
-        default=10,
-        help="Max articles/category for hourly mode (default: 10).",
+        default=None,
+        help="Max articles/category. Default: unlimited for full mode, 10 for hourly mode.",
     )
     parser.add_argument(
         "--no-stop-on-duplicate",
@@ -59,7 +59,7 @@ def main() -> None:
 
     run_crawl(
         mode=args.mode,
-        max_articles=args.max_articles,
+        max_articles=args.max_articles if args.max_articles is not None else (10 if args.mode == "hourly" else None),
         stop_on_duplicate=not args.no_stop_on_duplicate,
         run_label_after=not args.no_label,
         model_path=args.model_path,

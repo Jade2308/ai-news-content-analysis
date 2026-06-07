@@ -63,10 +63,7 @@ def seed(source: str, category: str | None, limit: int, db_path: str):
 
     for cat in categories:
         crawler = CrawlerClass(category=cat)
-        articles = crawler.run()
-
-        if limit and len(articles) > limit:
-            articles = articles[:limit]
+        articles = crawler.run(max_articles=limit if limit and limit > 0 else None)
 
         cat_inserted = cat_skipped_url = cat_skipped_fp = 0
         for art in articles:

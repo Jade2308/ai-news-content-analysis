@@ -128,9 +128,9 @@ def run_crawl(
                 count = crawl_newspaper(
                     crawler_class,
                     newspaper_name,
-                    max_articles=None,
-                    stop_on_duplicate=False,
-                    category_delay_seconds=3,
+                    max_articles=max_articles,
+                    stop_on_duplicate=stop_on_duplicate if max_articles is not None else False,
+                    category_delay_seconds=1 if max_articles is not None else 3,
                 )
                 time.sleep(5)
             results[newspaper_name] = count
@@ -154,12 +154,13 @@ def run_crawl(
             logger.info("No new articles found. Skipping AI predictions.")
         else:
             logger.info("\nStarting automatic labeling after crawl...")
-            run_labeling(
+            if not run_labeling(
                 model_path=model_path or DEFAULT_MODEL_PATH,
                 model_version=model_version,
                 batch_size=batch_size,
                 show_samples=False,
-            )
+            ):
+                logger.error("Automatic labeling after crawl failed.")
 
     return results, total_all
 
